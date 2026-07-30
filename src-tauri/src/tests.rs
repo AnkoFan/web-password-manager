@@ -83,6 +83,26 @@ fn sqlcipher_file_is_not_a_plain_sqlite_database() {
 }
 
 #[test]
+fn sqlcipher_enhanced_memory_wiping_is_enabled() {
+    let temp = tempfile::tempdir().unwrap();
+    let database = temp.path().join("vault.db");
+    let key = derive_kek("a-long-test-password", &test_header()).unwrap();
+    let connection = open_encrypted_database(&database, key.as_slice()).unwrap();
+
+    let enabled: String = connection
+        .query_row("PRAGMA cipher_memory_security;", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(enabled, "1");
+    assert!(
+        option_env!("LIBSQLITE3_FLAGS")
+            .unwrap_or_default()
+            .split_whitespace()
+            .any(|flag| flag == "-DOMIT_MEMLOCK"),
+        "Windows-safe SQLCipher builds must omit OS page locking"
+    );
+}
+
+#[test]
 fn phase_2_core_schema_has_expected_tables_and_version() {
     let temp = tempfile::tempdir().unwrap();
     let database = temp.path().join("vault.db");
@@ -372,6 +392,55 @@ fn unlock_rejects_tampered_database() {
     database.flush().unwrap();
     drop(database);
 
+    assert!(unlock_vault_files(&paths, TEST_PASSWORD).is_err());
+}
+
+#[test]
+fn unlock_rejects_truncated_database() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = test_paths(temp.path());
+    drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
+
+    let original_length = fs::metadata(&paths.database).unwrap().len();
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&paths.database)
+        .unwrap()
+        .set_len(original_length - 1)
+        .unwrap();
+
+    assert!(unlock_vault_files(&paths, TEST_PASSWORD).is_err());
+}
+
+#[test]
+fn unlock_rejects_tampered_wrapped_database_key() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = test_paths(temp.path());
+    drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
+
+    let mut header = load_header(&paths.header).unwrap();
+    let replacement = if header.wrapped_dek_hex.starts_with('0') {
+        "1"
+    } else {
+        "0"
+    };
+    header.wrapped_dek_hex.replace_range(0..1, replacement);
+    fs::write(&paths.header, serde_json::to_vec_pretty(&header).unwrap()).unwrap();
+
+    assert!(unlock_vault_files(&paths, TEST_PASSWORD).is_err());
+}
+
+#[test]
+fn unsupported_kdf_parameters_are_rejected_before_derivation() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = test_paths(temp.path());
+    drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
+
+    let mut header = load_header(&paths.header).unwrap();
+    header.memory_kib = KDF_MEMORY_KIB.saturating_add(1);
+    fs::write(&paths.header, serde_json::to_vec_pretty(&header).unwrap()).unwrap();
+
+    assert!(load_header(&paths.header).is_err());
     assert!(unlock_vault_files(&paths, TEST_PASSWORD).is_err());
 }
 

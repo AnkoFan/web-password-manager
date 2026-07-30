@@ -34,7 +34,8 @@
 - DEK 用于打开 SQLCipher 后不保存为 Rust 会话字段。
 - SQLCipher 内部仍会持有使用密钥所需的状态，关闭连接后由库释放。
 - KEK、DEK 不实现序列化，不返回前端，不写入日志。
-- Windows `cipher_memory_security` 当前因 `VirtualLock` 配额错误会导致栈溢出，暂未启用；这意味着不能声称数据库所有内存页均被锁定。
+- SQLCipher `cipher_memory_security` 已启用，释放 SQLite/SQLCipher 分配器内存前会进行覆盖擦除；每次打开连接都会读回状态，验证失败即拒绝使用。
+- Windows 构建定义 `OMIT_MEMLOCK`，避免 `VirtualLock` 配额失败通过 SQLCipher 日志递归导致栈溢出。因此当前实现提供增强擦除，但不声明数据库内存页被 OS 锁定或不会换出。
 
 ## 4. 数据库与安全头
 
@@ -90,7 +91,8 @@ WebView2 自身会在应用数据目录产生缓存、历史和诊断数据库�
 - [x] 安全头大小受限。
 - [x] 数据库和头文件不直接保存演示秘密明文。
 - [x] 锁定后秘密命令被拒绝。
-- [ ] Windows 内存锁定策略完成评审。
+- [x] Windows 增强内存擦除策略完成首轮评审。
+- [ ] Windows OS 页锁定或等价的防换出策略完成评审。
 - [x] 剪贴板定时条件清理完成。
 - [ ] WebView2 缓存、崩溃数据和存储经过自动扫描。
 - [x] 自动锁定和窗口失焦/休眠进入锁定完成。

@@ -6,3 +6,8 @@ registry = "sparse+https://rsproxy.cn/index/"
 
 [http]
 multiplexing = false
+
+[env]
+# Keep SQLCipher's full allocator wiping while avoiding the Windows
+# VirtualLock failure path that can recurse through SQLCipher logging.
+LIBSQLITE3_FLAGS = "-DOMIT_MEMLOCK"

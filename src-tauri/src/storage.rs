@@ -99,20 +99,28 @@ pub(crate) fn load_header(path: &Path) -> Result<VaultHeader, String> {
 pub(crate) fn open_encrypted_database(path: &Path, key: &[u8]) -> Result<Connection, String> {
     let connection = Connection::open(path).map_err(|_| "无法打开本地保险库".to_string())?;
     let key_hex = Zeroizing::new(hex::encode(key));
-    let key_pragma = Zeroizing::new(format!(
-        "PRAGMA key = \"x'{}'\";
-         PRAGMA foreign_keys = ON;",
-        key_hex.as_str()
-    ));
+    let key_pragma = Zeroizing::new(format!("PRAGMA key = \"x'{}'\";", key_hex.as_str()));
     connection
         .execute_batch(key_pragma.as_str())
         .map_err(|_| "无法初始化保险库加密".to_string())?;
+    connection
+        .execute_batch(
+            "PRAGMA cipher_memory_security = ON;
+             PRAGMA foreign_keys = ON;",
+        )
+        .map_err(|_| "无法初始化保险库内存保护".to_string())?;
 
     let cipher_version: String = connection
         .query_row("PRAGMA cipher_version;", [], |row| row.get(0))
         .map_err(|_| "当前构建未启用 SQLCipher".to_string())?;
     if cipher_version.trim().is_empty() {
         return Err("当前构建未启用 SQLCipher".into());
+    }
+    let memory_security: String = connection
+        .query_row("PRAGMA cipher_memory_security;", [], |row| row.get(0))
+        .map_err(|_| "无法验证保险库内存保护".to_string())?;
+    if memory_security != "1" {
+        return Err("保险库内存保护未启用".into());
     }
     Ok(connection)
 }
