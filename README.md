@@ -1,0 +1,59 @@
+# WebPasswordManager
+
+> 完全本地、开源、模块化的账号与敏感信息管理工具。
+>
+> 当前版本：`0.1.0` / 第二阶段 M2.5 内部 MVP
+>
+> 最后更新日期：2026-07-30
+
+## 当前目标
+
+当前版本已经完成第二阶段 M2.1–M2.5 的内部账号管理闭环：
+
+1. 创建、锁定和解锁本地 SQLCipher 保险库。
+2. 创建和编辑分类、网站、多账号、基础字段与自定义字段。
+3. 搜索非敏感内容、按需显示或复制敏感字段、校验并打开网址。
+4. 级联软删除与按删除批次恢复。
+5. 自动锁定、条件清理剪贴板、本机加密备份与验证恢复。
+
+React 前端只通过类型化 Tauri 命令访问业务与敏感能力；列表和搜索响应不包含秘密值，敏感值按字段、按操作读取。浏览器开发模式继续使用仅驻留内存的等价原型，刷新后重置；Windows 桌面端使用真实 SQLCipher 仓储。
+
+## 开发命令
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+npm.cmd test
+npm.cmd run build
+```
+
+构建 Windows 桌面程序还需要 Rust stable、Visual Studio 2022 C++ Build Tools
+和 Strawberry Perl：
+
+```powershell
+scripts\check-environment.cmd
+scripts\cargo-test.cmd
+scripts\tauri-build.cmd
+```
+
+首个安装包已生成于
+`src-tauri/target/release/bundle/nsis/WebPasswordManager_0.1.0_x64-setup.exe`。
+
+## 安全边界
+
+- 不使用账号注册、云同步、遥测或远程脚本。
+- 主密码不得写入日志或前端持久化存储。
+- 密码与令牌默认遮挡；复制操作不在通知中显示实际内容。
+- SQLCipher 业务仓储、自动锁定、剪贴板条件清理和备份恢复已完成内部测试，
+  但密码学实现与保险库格式尚未完成独立安全评审，因此当前版本仍只用于虚构测试数据。
+
+## 目录
+
+- `src/`：React 界面、功能模块和 Tauri 调用适配层。
+- `src-tauri/`：Rust 桌面壳、命令边界、权限和安装包配置。
+- `docs/`：产品、架构、安全、数据、开发和测试文档。
+- `docs/07-ui-ux/assets/primary-screen-concept.png`：第一阶段视觉基准。
+
+## 开源许可
+
+许可证尚未选择。在正式选定许可证前，请勿假定本项目已授予任何特定开源许可；参见 `LICENSE.md` 和 `LICENSE_SELECTION.md`。

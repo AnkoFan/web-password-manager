@@ -1,0 +1,740 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: oklch(0.982 0.005 85);
+    --foreground: oklch(0.22 0.012 220);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.22 0.012 220);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.22 0.012 220);
+    --primary: oklch(0.39 0.085 190);
+    --primary-foreground: oklch(0.99 0.004 180);
+    --secondary: oklch(0.955 0.008 190);
+    --secondary-foreground: oklch(0.28 0.04 190);
+    --muted: oklch(0.96 0.006 210);
+    --muted-foreground: oklch(0.51 0.018 220);
+    --accent: oklch(0.94 0.025 190);
+    --accent-foreground: oklch(0.3 0.06 190);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.9 0.008 210);
+    --input: oklch(0.9 0.008 210);
+    --ring: oklch(0.55 0.075 190);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.7rem;
+    --sidebar: oklch(0.975 0.006 190);
+    --sidebar-foreground: oklch(0.24 0.018 210);
+    --sidebar-primary: oklch(0.39 0.085 190);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.93 0.028 190);
+    --sidebar-accent-foreground: oklch(0.3 0.06 190);
+    --sidebar-border: oklch(0.9 0.008 210);
+    --sidebar-ring: oklch(0.55 0.075 190);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-width: 900px;
+    min-height: 640px;
+    margin: 0;
+    }
+  html {
+    @apply font-sans;
+    }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .brand-mark {
+    @apply flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground;
+  }
+
+  .brand-mark > svg {
+    @apply size-6;
+  }
+
+  .brand-mark-small {
+    @apply size-9 rounded-lg;
+  }
+
+  .brand-mark-small > svg {
+    @apply size-5;
+  }
+
+  .auth-shell {
+    @apply grid min-h-screen grid-cols-[minmax(340px,0.9fr)_minmax(440px,1.1fr)] bg-background;
+  }
+
+  .auth-intro {
+    @apply flex flex-col justify-center border-r bg-sidebar px-[clamp(3rem,7vw,7rem)] py-16;
+  }
+
+  .eyebrow {
+    @apply mt-7 text-sm font-semibold tracking-[0.16em] text-primary uppercase;
+  }
+
+  .auth-intro h1 {
+    @apply mt-3 max-w-xl text-4xl leading-[1.18] font-semibold tracking-tight;
+  }
+
+  .auth-lead {
+    @apply mt-5 max-w-lg text-base leading-7 text-muted-foreground;
+  }
+
+  .security-points {
+    @apply mt-10 flex flex-col gap-4 text-sm text-muted-foreground;
+  }
+
+  .security-points p {
+    @apply flex items-center gap-3;
+  }
+
+  .security-points svg {
+    @apply size-5 text-primary;
+  }
+
+  .auth-card {
+    @apply m-auto w-[min(470px,calc(100%-4rem))] shadow-sm;
+  }
+
+  .auth-card [data-slot="card-header"],
+  .unlock-card [data-slot="card-header"] {
+    @apply gap-2;
+  }
+
+  .auth-card [data-slot="card-content"],
+  .unlock-card [data-slot="card-content"] {
+    @apply py-2;
+  }
+
+  .auth-card [data-slot="card-footer"],
+  .unlock-card [data-slot="card-footer"] {
+    @apply flex gap-3 pt-6;
+  }
+
+  .password-control {
+    @apply relative flex items-center;
+  }
+
+  .password-control input {
+    @apply pr-11;
+  }
+
+  .password-control button {
+    @apply absolute right-1;
+  }
+
+  .unlock-shell {
+    @apply flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_50%_42%,var(--color-card),var(--color-background)_62%)];
+  }
+
+  .unlock-card {
+    @apply w-[430px] shadow-sm;
+  }
+
+  .unlock-layout {
+    @apply flex items-start gap-6;
+  }
+
+  .restore-card {
+    @apply w-[430px] shadow-sm;
+  }
+
+  .restore-card [data-slot="card-header"] {
+    @apply gap-2;
+  }
+
+  .lock-notice {
+    @apply rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground;
+  }
+
+  .recovery-state {
+    @apply flex w-[480px] flex-col gap-3 rounded-xl border bg-card p-8 shadow-sm;
+  }
+
+  .recovery-state h1 {
+    @apply text-xl font-semibold;
+  }
+
+  .recovery-state p {
+    @apply text-sm leading-6 text-muted-foreground;
+  }
+
+  .vault-app {
+    @apply grid h-screen min-h-[640px] grid-cols-[250px_minmax(0,1fr)] overflow-hidden bg-background;
+  }
+
+  .primary-nav {
+    @apply flex min-w-0 flex-col border-r bg-sidebar p-4;
+  }
+
+  .nav-brand {
+    @apply flex items-center gap-3 px-2 py-3;
+  }
+
+  .nav-brand div:last-child {
+    @apply flex min-w-0 flex-col gap-0.5;
+  }
+
+  .nav-brand strong {
+    @apply truncate text-sm font-semibold;
+  }
+
+  .nav-brand span:last-child {
+    @apply truncate text-xs text-muted-foreground;
+  }
+
+  .nav-items {
+    @apply mt-6 flex flex-col gap-1;
+  }
+
+  .nav-item {
+    @apply flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
+  }
+
+  .nav-item svg {
+    @apply size-4;
+  }
+
+  .nav-item-active {
+    @apply bg-sidebar-accent text-sidebar-accent-foreground;
+  }
+
+  .workspace {
+    @apply grid min-w-0 grid-rows-[68px_minmax(0,1fr)];
+  }
+
+  .top-bar {
+    @apply flex min-w-0 items-center justify-between gap-6 border-b bg-card px-7;
+  }
+
+  .breadcrumbs {
+    @apply flex min-w-0 items-center gap-2 text-sm text-muted-foreground;
+  }
+
+  .breadcrumbs svg {
+    @apply size-3.5 shrink-0;
+  }
+
+  .breadcrumbs strong {
+    @apply truncate font-medium text-foreground;
+  }
+
+  .breadcrumb-part {
+    @apply flex min-w-0 items-center gap-2;
+  }
+
+  .top-actions {
+    @apply flex shrink-0 items-center gap-3;
+  }
+
+  .search-control {
+    @apply relative flex w-[340px] items-center;
+  }
+
+  .search-control > svg {
+    @apply absolute left-3 size-4 text-muted-foreground;
+  }
+
+  .search-control input {
+    @apply bg-background pr-16 pl-9;
+  }
+
+  .search-control kbd {
+    @apply absolute right-2 rounded border bg-muted px-1.5 py-0.5 font-sans text-[11px] text-muted-foreground;
+  }
+
+  .content-grid {
+    @apply grid min-h-0 grid-cols-[390px_minmax(460px,1fr)];
+  }
+
+  .account-browser {
+    @apply flex min-h-0 flex-col overflow-y-auto border-r bg-card p-6;
+  }
+
+  .vault-browser {
+    @apply gap-4;
+  }
+
+  .browser-section-heading {
+    @apply flex items-center justify-between text-sm font-semibold;
+  }
+
+  .entity-list {
+    @apply flex flex-col gap-1;
+  }
+
+  .compact-list {
+    @apply max-h-36 overflow-y-auto;
+  }
+
+  .entity-item {
+    @apply grid min-h-10 w-full grid-cols-[20px_minmax(0,1fr)_16px] items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground;
+  }
+
+  .entity-item > svg {
+    @apply size-4;
+  }
+
+  .entity-item > span {
+    @apply min-w-0 truncate;
+  }
+
+  .entity-item > span:has(strong) {
+    @apply flex flex-col gap-0.5;
+  }
+
+  .entity-item strong {
+    @apply truncate font-medium text-foreground;
+  }
+
+  .entity-item small {
+    @apply truncate text-xs text-muted-foreground;
+  }
+
+  .entity-item-active {
+    @apply bg-accent text-accent-foreground hover:bg-accent;
+  }
+
+  .inline-entity-actions {
+    @apply flex items-center gap-1;
+  }
+
+  .browser-empty {
+    @apply rounded-lg bg-muted/60 px-3 py-4 text-center text-xs leading-5 text-muted-foreground;
+  }
+
+  .website-header {
+    @apply flex flex-col gap-5 pb-6;
+  }
+
+  .website-title {
+    @apply grid grid-cols-[44px_minmax(0,1fr)_32px] items-center gap-3;
+  }
+
+  .website-icon {
+    @apply flex size-11 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground;
+  }
+
+  .website-title h1 {
+    @apply truncate text-lg font-semibold tracking-tight;
+  }
+
+  .website-title p {
+    @apply mt-0.5 truncate text-sm text-muted-foreground;
+  }
+
+  .website-actions {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .account-list-heading {
+    @apply flex items-center gap-2 pt-5 pb-3 text-sm font-medium text-muted-foreground;
+  }
+
+  .account-list {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .account-item {
+    @apply grid w-full grid-cols-[38px_minmax(0,1fr)_18px] items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted;
+  }
+
+  .account-item > svg {
+    @apply size-4 text-muted-foreground;
+  }
+
+  .account-avatar {
+    @apply flex size-9 items-center justify-center rounded-lg border bg-background;
+  }
+
+  .account-avatar svg {
+    @apply size-4;
+  }
+
+  .account-item > span:nth-child(2) {
+    @apply flex min-w-0 flex-col gap-0.5;
+  }
+
+  .account-item strong {
+    @apply truncate text-sm font-medium;
+  }
+
+  .account-item small {
+    @apply truncate text-xs text-muted-foreground;
+  }
+
+  .account-item-active {
+    @apply bg-accent text-accent-foreground hover:bg-accent;
+  }
+
+  .add-account {
+    @apply mt-4 w-full border-dashed;
+  }
+
+  .account-detail {
+    @apply flex min-h-0 min-w-0 flex-col bg-background px-[clamp(2rem,4vw,4.5rem)] py-9;
+  }
+
+  .detail-header {
+    @apply flex items-center justify-between gap-6;
+  }
+
+  .detail-title {
+    @apply flex min-w-0 items-center gap-4;
+  }
+
+  .detail-avatar {
+    @apply flex size-14 shrink-0 items-center justify-center rounded-xl border bg-card;
+  }
+
+  .detail-avatar svg {
+    @apply size-6 text-muted-foreground;
+  }
+
+  .detail-title p {
+    @apply text-xs font-medium text-primary;
+  }
+
+  .detail-title h2 {
+    @apply mt-1 truncate text-2xl font-semibold tracking-tight;
+  }
+
+  .detail-actions {
+    @apply flex shrink-0 gap-2;
+  }
+
+  .detail-website-actions {
+    @apply mt-7 flex items-center gap-2 rounded-xl border bg-card p-3;
+  }
+
+  .detail-url {
+    @apply min-w-0 flex-1 truncate px-2 text-sm text-muted-foreground;
+  }
+
+  .field-table {
+    @apply mt-10 overflow-hidden rounded-xl border bg-card;
+  }
+
+  .secret-row {
+    @apply grid min-h-20 grid-cols-[140px_minmax(0,1fr)_auto] items-center gap-4 border-b px-5 last:border-b-0;
+  }
+
+  .field-label {
+    @apply text-sm font-medium;
+  }
+
+  .field-value {
+    @apply truncate bg-transparent font-sans text-sm text-foreground;
+  }
+
+  .field-value.masked {
+    @apply tracking-[0.18em] text-muted-foreground;
+  }
+
+  .field-actions {
+    @apply flex items-center gap-1;
+  }
+
+  .local-status {
+    @apply mt-auto flex items-center gap-2 pt-8 text-xs text-muted-foreground;
+  }
+
+  .local-status svg {
+    @apply size-4 text-primary;
+  }
+
+  .detail-empty {
+    @apply items-center justify-center text-center;
+  }
+
+  .detail-empty-icon,
+  .search-result-icon,
+  .trash-icon {
+    @apply flex size-11 items-center justify-center rounded-xl border bg-card text-muted-foreground;
+  }
+
+  .detail-empty-icon > svg,
+  .search-result-icon > svg,
+  .trash-icon > svg {
+    @apply size-5;
+  }
+
+  .detail-empty h2 {
+    @apply mt-5 text-lg font-semibold;
+  }
+
+  .detail-empty p {
+    @apply mt-2 max-w-sm text-sm text-muted-foreground;
+  }
+
+  .fields-empty {
+    @apply px-5 py-8 text-center text-sm text-muted-foreground;
+  }
+
+  .editor-section-heading {
+    @apply flex items-center justify-between gap-4;
+  }
+
+  .field-editor-list {
+    @apply flex max-h-[46vh] flex-col gap-2 overflow-y-auto rounded-xl border bg-muted/30 p-3;
+  }
+
+  .field-editor-row {
+    @apply grid grid-cols-[1fr_120px_110px_1.35fr_78px_32px] items-center gap-2 rounded-lg bg-card p-2;
+  }
+
+  .sensitive-toggle {
+    @apply flex items-center gap-2 text-xs text-muted-foreground;
+  }
+
+  .workspace-loading {
+    @apply flex items-center justify-center text-sm text-muted-foreground;
+  }
+
+  .search-results,
+  .trash-view,
+  .settings-view {
+    @apply min-h-0 overflow-y-auto px-[clamp(2rem,5vw,5rem)] py-10;
+  }
+
+  .search-results > header,
+  .trash-view > header,
+  .settings-view > header {
+    @apply flex items-start justify-between gap-6;
+  }
+
+  .search-results header p,
+  .trash-view header p,
+  .settings-view header p {
+    @apply text-xs font-medium text-primary;
+  }
+
+  .search-results header h2,
+  .trash-view header h1,
+  .settings-view header h1 {
+    @apply mt-1 text-2xl font-semibold tracking-tight;
+  }
+
+  .trash-view header span,
+  .settings-view header span {
+    @apply mt-2 block max-w-2xl text-sm text-muted-foreground;
+  }
+
+  .settings-view > header {
+    @apply block;
+  }
+
+  .settings-grid {
+    @apply mt-8 grid grid-cols-2 gap-4;
+  }
+
+  .settings-grid [data-slot="card-action"] > svg {
+    @apply size-5 text-primary;
+  }
+
+  .backup-card {
+    @apply col-span-2;
+  }
+
+  .backup-list {
+    @apply flex flex-col gap-2;
+  }
+
+  .backup-list > div {
+    @apply grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-3;
+  }
+
+  .backup-list > div > svg {
+    @apply size-4 text-muted-foreground;
+  }
+
+  .backup-list > div > span {
+    @apply flex min-w-0 flex-col gap-0.5;
+  }
+
+  .backup-list strong,
+  .backup-list small {
+    @apply truncate;
+  }
+
+  .backup-list small,
+  .settings-empty {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .search-result-list,
+  .trash-list {
+    @apply mt-8 flex flex-col gap-2;
+  }
+
+  .search-result-list > button {
+    @apply grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted;
+  }
+
+  .search-result-list > button > span:nth-child(2) {
+    @apply flex min-w-0 flex-col gap-1;
+  }
+
+  .search-result-list strong {
+    @apply truncate text-sm font-medium;
+  }
+
+  .search-result-list small {
+    @apply truncate text-xs text-muted-foreground;
+  }
+
+  .search-empty,
+  .trash-empty {
+    @apply flex flex-col items-center rounded-xl border border-dashed py-16 text-center;
+  }
+
+  .search-empty > svg,
+  .trash-empty > svg {
+    @apply size-8 text-muted-foreground;
+  }
+
+  .search-empty strong,
+  .trash-empty h2 {
+    @apply mt-4 text-base font-semibold;
+  }
+
+  .search-empty p,
+  .trash-empty p {
+    @apply mt-2 text-sm text-muted-foreground;
+  }
+
+  .trash-list article {
+    @apply grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-xl border bg-card p-4;
+  }
+
+  .trash-list article > div {
+    @apply min-w-0;
+  }
+
+  .trash-list article strong {
+    @apply block truncate text-sm font-medium;
+  }
+
+  .trash-list article p {
+    @apply mt-1 text-xs text-muted-foreground;
+  }
+}
+
+@media (max-width: 1120px) {
+  .vault-app {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+
+  .content-grid {
+    grid-template-columns: 340px minmax(430px, 1fr);
+  }
+
+  .search-control {
+    width: 280px;
+  }
+
+  .account-detail {
+    padding-inline: 2rem;
+  }
+
+  .detail-actions button {
+    font-size: 0;
+  }
+
+  .detail-actions button svg {
+    margin: 0;
+  }
+}
