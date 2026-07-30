@@ -13,8 +13,9 @@
 
 ## 实现
 
-- 基线提交：`958a40e`。
+- M2.5 基线提交：`47a78f0`。
 - 基线标签：`m2.5-internal`。
+- M2.6 最终实现提交：`b594757`；`m2.6-internal` 指向该提交。
 - `.gitignore` 排除保险库数据库、安全头、备份、密钥、环境配置、日志和构建产物。
 - 构建定义 `LIBSQLITE3_FLAGS=-DOMIT_MEMLOCK`，关闭 SQLCipher 的 OS 页锁定调用。
 - 每个加密连接启用 `PRAGMA cipher_memory_security = ON`，随后读回状态；状态不是 `1` 时安全失败。
@@ -41,11 +42,16 @@ SQLCipher 增强内存安全会覆盖 SQLite/SQLCipher 的全部分配器内存�
 | 生产包敏感面扫描 | 通过 |
 | npm audit | 0 个漏洞 |
 | Windows 原生构建 | 通过，22,926,336 字节 |
+| GitHub Actions 前端质量门禁 | 通过 |
+| GitHub Actions Windows Rust/SQLCipher | 通过 |
+| GitHub Actions RustSec / Security audit | 通过 |
 
-## 开发结束后的发布门禁
+首次完整远程 CI：[GitHub Actions 30550145677](https://github.com/AnkoFan/web-password-manager/actions/runs/30550145677)。
 
-- 连接 GitHub 后首次运行并通过全部 Actions，尤其是 RustSec。
+## M2 关闭后转入 M3 的发布门禁
+
 - 使用虚构数据人工验证 Windows 锁屏、休眠、切换用户和异常退出。
 - 检查真实 WebView2 缓存目录与崩溃转储。
 - 完成安装包签名、许可证选择和独立安全评审。
+- 仓库公开后配置 `main` 分支保护和必需 CI 检查。
 - Windows OS 页锁定或等价防换出策略作为长期加固项，不阻断内部 M2.6 完成。

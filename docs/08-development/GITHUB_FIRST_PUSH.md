@@ -1,6 +1,6 @@
 # GitHub 首次连接与推送
 
-> 状态：已完成首次连接与推送准备
+> 状态：首次连接、推送与 CI 验证已完成
 
 ## 仓库信息
 
@@ -27,8 +27,10 @@ git push origin --tags
 
 ## 推送后检查
 
-- 检查 Frontend、Rust and SQLCipher、RustSec 三个 Actions。
-- 把这些检查设置为 `main` 分支合并门禁。
-- 启用阻止强制推送和删除分支。
-- 根据仓库公开性决定是否启用 Dependabot 和 secret scanning。
-- 首次 RustSec 未通过时先处理告警，不添加无说明的忽略项。
+- [x] `main`、`m2.5-internal` 和 `m2.6-internal` 已推送。
+- [x] Frontend、Rust and SQLCipher、RustSec 与 Security audit 全部通过。
+- [x] Linux/Windows 跨平台 `npm ci` 已验证。
+- [ ] 仓库公开后把必需检查设为 `main` 合并门禁，并阻止强制推送和删除。
+- [ ] 仓库公开后复核 Dependabot、secret scanning 和公开仓库安全设置。
+
+当前仓库保持私有。GitHub Free 不支持私有仓库分支保护，因此保护规则按决定延期到仓库公开后配置；延期不改变“仅使用虚构测试数据”的限制。

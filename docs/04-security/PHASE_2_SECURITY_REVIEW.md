@@ -13,15 +13,15 @@
 - SR-004：SQLCipher `cipher_memory_security` 已启用并读回验证；Windows 构建关闭 OS 页锁定，保留全分配器内存擦除。
 - SR-005：RFC 9106 Argon2id 与 IETF XChaCha20-Poly1305 草案已知答案通过；盐、nonce、标签、AAD、数据库截断和头库错配矩阵已覆盖。
 - SR-010（开发范围）：生产源码、构建包、CSP、IPC 和 Tauri 权限静态扫描已进入前端门禁；未使用的 Web Storage 依赖已移除。
-- SR-012：GitHub Actions 已包含前端质量、npm audit、Windows Rust/SQLCipher 和 RustSec `audit-check`。
-- SR-013：已建立提交 `958a40e` 和 `m2.5-internal` 标签，提交级追溯恢复。
+- SR-012：GitHub Actions 已包含前端质量、npm audit、Windows Rust/SQLCipher 和 RustSec `audit-check`；提交 `b594757` 的首次完整远程运行全部通过。
+- SR-013：已建立 M2.5 基线提交 `47a78f0`、`m2.5-internal` 与 `m2.6-internal` 标签，并推送至私有 GitHub 仓库。
 
 ## 转入公开测试版门禁
 
 - SR-009：安全头格式与 KDF 参数升级机制在格式 v2 / 第三阶段实现。
 - SR-010（运行时范围）：真实 WebView2 缓存目录、崩溃转储和 Windows 剪贴板历史仍需在签名前人工检查。
-- SR-012（首次运行）：本机 `cargo-audit` 安装因索引下载挂起未完成；远程仓库连接后必须以首次 RustSec CI 通过作为合并门禁。
 - SR-014：安装包签名、发布身份、许可证和第三方独立安全评审尚未完成。
+- GitHub Free 不支持私有仓库分支保护；当前保持私有并使用功能分支与 Pull Request，仓库公开后启用 `main` 必需检查。
 
 ## 新增限制
 
@@ -33,4 +33,4 @@
 
 ## 判定
 
-M2.1–M2.6 的开发目标可以标记完成。第三阶段门禁和独立安全评审未通过前，不得移除“仅使用虚构测试数据”的限制。
+M2.1–M2.6 的开发目标、首次远程 CI 和内部安全回归均已完成。第三阶段门禁和独立安全评审未通过前，不得移除“仅使用虚构测试数据”的限制。
