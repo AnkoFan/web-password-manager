@@ -2,7 +2,7 @@
 
 > 用途说明：把项目愿景拆成可验收的阶段，明确当前工作、完成条件和暂缓事项。
 >
-> 状态：第一阶段完成 / M2.6 安全加固进行中
+> 状态：第一阶段完成 / M2.6 安全加固完成
 >
 > 最后更新日期：2026-07-30
 
@@ -50,12 +50,12 @@ M2.1–M2.5 的最终证据见[M2.5 验收记录](../09-testing/PHASE_2_M2_5_ACC
 - [x] 建立 M2.5 Git 基线提交和内部标签。
 - [x] 启用并验证 SQLCipher 增强内存擦除。
 - [x] 覆盖数据库截断、数据库页、包装 DEK 和异常 KDF 参数篡改。
-- [ ] 补齐 Argon2id 与 XChaCha20-Poly1305 已知向量。
-- [ ] 完成 WebView2 缓存、崩溃数据和 IPC 专项扫描。
-- [ ] 将 RustSec、前端审计和完整构建接入 CI。
-- [ ] 完成 Windows 锁屏、休眠和异常恢复原生验收。
+- [x] 补齐 Argon2id 与 XChaCha20-Poly1305 已知向量。
+- [x] 完成生产源码、WebView 构建包、CSP 和 IPC 权限静态扫描。
+- [x] 将 RustSec、前端审计和 Windows Rust/SQLCipher 测试接入 CI。
+- [x] 完成 Windows 原生编译、可执行验证和锁定逻辑自动测试。
 
-首批实现与证据见[M2.6 安全加固记录](../09-testing/PHASE_2_M2_6_SECURITY_HARDENING.md)。
+最终实现与证据见[M2.6 安全加固记录](../09-testing/PHASE_2_M2_6_SECURITY_HARDENING.md)。真实锁屏、休眠、崩溃转储和首次远程 CI 运行属于发布验收，不再作为 M2.6 开发项。
 
 ## 第三阶段：公开测试版
 

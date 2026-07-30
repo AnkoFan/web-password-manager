@@ -10,6 +10,11 @@
 - 启用 SQLCipher `cipher_memory_security` 全分配器内存擦除，并在每次打开连接时读回状态；未启用时拒绝使用连接。
 - Windows 构建使用 `OMIT_MEMLOCK` 避开 `VirtualLock` 失败后的递归日志栈溢出；该策略提供内存擦除，但不声明操作系统页锁定。
 - 增加数据库截断、包装 DEK 篡改和异常 KDF 参数安全失败测试。
+- 增加 RFC 9106 Argon2id 和 IETF XChaCha20-Poly1305 草案已知答案测试。
+- 增加盐、nonce、AEAD 标签、头部 AAD 和安全头/数据库错配篡改测试。
+- 增加生产前端、CSP、Tauri 权限和构建产物的敏感面扫描。
+- 增加 GitHub Actions 前端、Windows Rust/SQLCipher 和 RustSec 门禁。
+- 移除未使用的 `next-themes`，生产包不再包含 Web Storage 访问代码。
 
 ## 未发布 - 第二阶段 M2.1–M2.5
 

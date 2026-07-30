@@ -10,7 +10,7 @@ pub(crate) const KDF_MEMORY_KIB: u32 = 64 * 1024;
 pub(crate) const KDF_ITERATIONS: u32 = 3;
 pub(crate) const KDF_PARALLELISM: u32 = 1;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct VaultHeader {
     pub(crate) format_version: u32,

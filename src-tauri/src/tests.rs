@@ -4,6 +4,11 @@ use std::{
     process::Command,
 };
 
+use argon2::{Algorithm, Argon2, AssociatedData, ParamsBuilder, Version};
+use chacha20poly1305::{
+    aead::{Aead, KeyInit, Payload},
+    XChaCha20Poly1305, XNonce,
+};
 use rusqlite::params;
 
 use crate::{
@@ -56,6 +61,59 @@ fn argon2id_key_is_stable_for_the_same_password_and_salt() {
 }
 
 #[test]
+fn argon2id_matches_rfc_9106_known_answer() {
+    let params = ParamsBuilder::new()
+        .m_cost(32)
+        .t_cost(3)
+        .p_cost(4)
+        .data(AssociatedData::new(&[0x04; 12]).unwrap())
+        .build()
+        .unwrap();
+    let argon2 =
+        Argon2::new_with_secret(&[0x03; 8], Algorithm::Argon2id, Version::V0x13, params).unwrap();
+    let mut output = [0_u8; 32];
+
+    argon2
+        .hash_password_into(&[0x01; 32], &[0x02; 16], &mut output)
+        .unwrap();
+
+    assert_eq!(
+        output.as_slice(),
+        hex::decode("0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659").unwrap()
+    );
+}
+
+#[test]
+fn xchacha20poly1305_matches_ietf_draft_known_answer() {
+    let key: Vec<u8> = (0x80..=0x9f).collect();
+    let nonce: Vec<u8> = (0x40..=0x57).collect();
+    let aad = hex::decode("50515253c0c1c2c3c4c5c6c7").unwrap();
+    let plaintext = b"Ladies and Gentlemen of the class of '99: \
+        If I could offer you only one tip for the future, sunscreen would be it.";
+    let expected = hex::decode(concat!(
+        "bd6d179d3e83d43b9576579493c0e939572a1700252bfaccbed2902c21396cbb",
+        "731c7f1b0b4aa6440bf3a82f4eda7e39ae64c6708c54c216cb96b72e1213b452",
+        "2f8c9ba40db5d945b11b69b982c1bb9e3f3fac2bc369488f76b2383565d3fff9",
+        "21f9664c97637da9768812f615c68b13b52ec0875924c1c7987947deafd8780a",
+        "cf49"
+    ))
+    .unwrap();
+    let cipher = XChaCha20Poly1305::new_from_slice(&key).unwrap();
+
+    let encrypted = cipher
+        .encrypt(
+            XNonce::from_slice(&nonce),
+            Payload {
+                msg: plaintext,
+                aad: &aad,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(encrypted, expected);
+}
+
+#[test]
 fn wrapped_database_key_requires_the_correct_password() {
     let mut header = test_header();
     let nonce = [8_u8; 24];
@@ -67,6 +125,33 @@ fn wrapped_database_key_requires_the_correct_password() {
     let unwrapped = unwrap_database_key("a-long-test-password", &header).unwrap();
     assert_eq!(unwrapped.as_slice(), database_key);
     assert!(unwrap_database_key("wrong-test-password", &header).is_err());
+}
+
+#[test]
+fn wrapped_database_key_authenticates_salt_nonce_tag_and_header_aad() {
+    let mut header = test_header();
+    let nonce = [8_u8; 24];
+    let database_key = [9_u8; 32];
+    let kek = derive_kek(TEST_PASSWORD, &header).unwrap();
+    header.wrapped_dek_hex =
+        hex::encode(wrap_database_key(kek.as_slice(), &database_key, &header, &nonce).unwrap());
+
+    let mut changed_salt = header.clone();
+    changed_salt.kdf_salt_hex.replace_range(0..2, "00");
+    assert!(unwrap_database_key(TEST_PASSWORD, &changed_salt).is_err());
+
+    let mut changed_nonce = header.clone();
+    changed_nonce.wrap_nonce_hex.replace_range(0..2, "00");
+    assert!(unwrap_database_key(TEST_PASSWORD, &changed_nonce).is_err());
+
+    let mut changed_tag = header.clone();
+    let last = changed_tag.wrapped_dek_hex.len() - 2;
+    changed_tag.wrapped_dek_hex.replace_range(last.., "00");
+    assert!(unwrap_database_key(TEST_PASSWORD, &changed_tag).is_err());
+
+    let mut changed_aad = header;
+    changed_aad.wrap_algorithm = "xchacha20poly1305-modified".into();
+    assert!(unwrap_database_key(TEST_PASSWORD, &changed_aad).is_err());
 }
 
 #[test]
@@ -442,6 +527,20 @@ fn unsupported_kdf_parameters_are_rejected_before_derivation() {
 
     assert!(load_header(&paths.header).is_err());
     assert!(unlock_vault_files(&paths, TEST_PASSWORD).is_err());
+}
+
+#[test]
+fn mismatched_header_and_database_are_rejected() {
+    let first = tempfile::tempdir().unwrap();
+    let second = tempfile::tempdir().unwrap();
+    let first_paths = test_paths(first.path());
+    let second_paths = test_paths(second.path());
+    drop(create_vault_files(&first_paths, TEST_PASSWORD).unwrap());
+    drop(create_vault_files(&second_paths, TEST_PASSWORD).unwrap());
+
+    fs::copy(&second_paths.header, &first_paths.header).unwrap();
+
+    assert!(unlock_vault_files(&first_paths, TEST_PASSWORD).is_err());
 }
 
 #[test]
