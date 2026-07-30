@@ -38,4 +38,4 @@ npm.cmd audit --audit-level=moderate
 scripts\cargo-test.cmd
 ```
 
-远程仓库连接后，GitHub Actions 还必须运行 RustSec `audit-check`。
+GitHub Actions 已运行并通过 RustSec `audit-check`；M3 的每个 Pull Request 继续执行本文件列出的自动化门禁。

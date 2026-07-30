@@ -2,7 +2,7 @@
 
 > 最后更新日期：2026-07-30
 
-## 未发布 - M2.6 安全加固
+## M2.6 内部验收 - 2026-07-30
 
 ### 安全
 
@@ -15,8 +15,10 @@
 - 增加生产前端、CSP、Tauri 权限和构建产物的敏感面扫描。
 - 增加 GitHub Actions 前端、Windows Rust/SQLCipher 和 RustSec 门禁。
 - 移除未使用的 `next-themes`，生产包不再包含 Web Storage 访问代码。
+- 修复 Windows 专用 Tauri CLI 直接依赖导致的 Linux `npm ci` 失败，CI 改为只在 `main` 推送和 Pull Request 上运行。
+- 建立私有 GitHub 仓库，推送 `main`、`m2.5-internal` 和 `m2.6-internal`；首次远程前端、Rust/SQLCipher 与 RustSec 门禁全部通过。
 
-## 未发布 - 第二阶段 M2.1–M2.5
+## 第二阶段 M2.1–M2.5 内部验收 - 2026-07-30
 
 ### 新增
 
