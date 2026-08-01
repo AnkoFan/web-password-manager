@@ -1,5 +1,5 @@
 use std::sync::{
-    mpsc::{self, Receiver, Sender, SyncSender},
+    mpsc::{self, Receiver, SyncSender},
     OnceLock,
 };
 use std::time::Duration;
@@ -18,7 +18,14 @@ use windows_sys::Win32::{
     },
 };
 
-static EVENT_SENDER: OnceLock<Sender<&'static str>> = OnceLock::new();
+static EVENT_SENDER: OnceLock<SyncSender<&'static str>> = OnceLock::new();
+
+fn queue_lifecycle_reason(sender: &SyncSender<&'static str>, reason: &'static str) {
+    // One pending event is sufficient: every lifecycle reason closes the same
+    // session, and the window procedure must never block or grow memory under
+    // repeated cross-process PostMessageW traffic.
+    let _ = sender.try_send(reason);
+}
 
 fn lifecycle_reason(message: u32, event: usize) -> Option<&'static str> {
     match (message, event as u32) {
@@ -42,7 +49,7 @@ unsafe extern "system" fn lifecycle_window_proc(
 ) -> LRESULT {
     if let Some(reason) = lifecycle_reason(message, wparam) {
         if let Some(sender) = EVENT_SENDER.get() {
-            let _ = sender.send(reason);
+            queue_lifecycle_reason(sender, reason);
         }
     }
     unsafe { DefWindowProcW(window, message, wparam, lparam) }
@@ -99,7 +106,7 @@ fn run_message_window(ready: SyncSender<bool>) {
 }
 
 pub(crate) fn subscribe() -> Result<Receiver<&'static str>, String> {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = mpsc::sync_channel(1);
     EVENT_SENDER
         .set(sender)
         .map_err(|_| "Windows 生命周期监控已初始化".to_string())?;
@@ -137,6 +144,17 @@ mod tests {
             Some("windows_resume")
         );
         assert_eq!(lifecycle_reason(WM_POWERBROADCAST, 0), None);
+    }
+
+    #[test]
+    fn repeated_lifecycle_events_are_coalesced_without_blocking() {
+        let (sender, receiver) = mpsc::sync_channel(1);
+
+        queue_lifecycle_reason(&sender, "windows_suspend");
+        queue_lifecycle_reason(&sender, "windows_resume");
+
+        assert_eq!(receiver.try_recv(), Ok("windows_suspend"));
+        assert!(receiver.try_recv().is_err());
     }
 
     #[test]
