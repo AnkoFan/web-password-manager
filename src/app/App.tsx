@@ -46,7 +46,7 @@ export function App() {
             <h1>本地数据库需要处理</h1>
             <p>{startupError || "无法确认本地数据库状态。"}</p>
             <p>为避免覆盖现有文件，应用已停止创建和编辑操作。</p>
-            <p>请先复制应用数据目录，再检查文件权限或恢复已验证的明文备份。</p>
+            <p>请先复制应用数据目录，再检查文件权限、DPAPI 用户身份或恢复已验证的加密备份。</p>
             <Button type="button" onClick={() => void checkStatus()}>
               重新检查数据库
             </Button>

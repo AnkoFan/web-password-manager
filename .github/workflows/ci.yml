@@ -24,7 +24,7 @@ jobs:
       - run: npm audit --audit-level=moderate
 
   rust:
-    name: Rust and SQLite tests
+    name: Rust, DPAPI and SQLCipher tests
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6

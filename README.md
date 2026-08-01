@@ -1,25 +1,24 @@
 # WebPasswordManager
 
-> 完全本地、开源、模块化的账号信息管理工具。
+> 完全本地、开源、模块化的 Windows 账号信息管理工具。
 >
-> 当前开发阶段：M3 范围调整中；仅允许使用虚构测试数据。
+> 当前开发阶段：M3 DPAPI/SQLCipher 自动加密增量；仅使用虚构测试数据。
 
-## 重要安全提示
+## 当前存储方式
 
-自 2026-08-01 起，项目按产品决定取消整个锁定/解锁设计，包括主密码、自动锁定、Windows 锁屏联动、KDF、密钥包装和 SQLCipher。Windows 桌面端现在把数据写入普通 SQLite 文件 `password-manager.db`，本机备份同样不加密。
+Windows 桌面端使用 SQLCipher 加密本地数据库，并用当前 Windows 用户的 DPAPI 自动保护随机 256 位数据库密钥。应用启动时自动打开数据库：没有主密码，也没有锁定、解锁、自动锁定或锁屏联动功能。
 
-任何能读取当前 Windows 用户应用数据目录的人或程序，都可以直接读取数据库和备份。本版本不是安全密码保险库，不得保存真实密码、Token、恢复码或其他真实秘密。
+活动文件为 `password-manager.dpapi.db` 与 `password-manager.dpapi-key`。旧明文测试库 `password-manager.db`、旧 `vault.db` 和安全头不会迁移、读取、覆盖或删除。
 
-旧的 `vault.db` 与 `vault.header.json` 测试文件不会迁移、不会自动打开，也不会被新实现覆盖。
+该设计保护静态数据库文件，但不防御当前用户上下文恶意程序、管理员、运行期内存读取、屏幕捕获或剪贴板历史。当前版本仍不得保存真实密码、Token 或恢复码。
 
 ## 已实现功能
 
-- 分类、网站、多账号、基础字段和自定义字段的新增与编辑。
-- 搜索非敏感索引，敏感字段默认遮挡并按需显示或复制。
-- 级联软删除、回收站和按删除批次恢复。
-- 网址校验与默认浏览器打开。
+- 分类、网站、多账号、基础字段和自定义字段。
+- 搜索、敏感字段遮挡/显示/复制和网址打开。
+- 级联软删除、回收站和批次恢复。
 - 剪贴板条件定时清理。
-- 普通 SQLite 本地备份、SHA-256 完整性验证和恢复。
+- DPAPI 自动保护的 SQLCipher 数据库与加密备份恢复。
 - React/Tauri 类型化命令边界、CSP、最小权限、自动化测试和 Windows 安装程序。
 
 ## 开发命令
@@ -31,22 +30,13 @@ npm.cmd run check
 scripts\tauri-build.cmd
 ```
 
-Windows 桌面构建需要 Rust stable 和 Visual Studio 2022 C++ Build Tools；不再需要 SQLCipher/OpenSSL 的 Perl 构建依赖。
+Windows 桌面构建需要 Rust stable、Visual Studio 2022 C++ Build Tools 和 Strawberry Perl（用于 SQLCipher/OpenSSL）。浏览器开发原型只驻留内存，刷新后重置，不模拟 Windows DPAPI。
 
-## 数据与权限边界
+## 数据规则
 
 - 不使用账号注册、云同步、遥测或远程脚本。
-- React 前端不使用 Web Storage 保存业务数据；桌面数据由 Rust 访问 SQLite。
 - 列表与搜索响应不包含敏感字段值，字段值按操作读取。
-- 浏览器开发原型只驻留内存，刷新后重置。
-- 数据库和备份是明文 SQLite，不提供静态保密性。
-- 所有开发、自动化、截图、安装和恢复测试只使用明确标记的虚构数据。
-
-## 目录
-
-- `src/`：React 界面、功能模块和 Tauri 调用适配层。
-- `src-tauri/`：Rust 桌面壳、SQLite 仓储、命令和安装包配置。
-- `docs/`：产品、架构、安全、数据、开发和测试文档。
+- 所有开发、CI、截图、安装和恢复测试只使用明确标记的虚构数据。
 
 ## 开源许可
 

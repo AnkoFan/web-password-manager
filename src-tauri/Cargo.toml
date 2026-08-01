@@ -27,7 +27,8 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-opener = "2"
 zeroize = "1.8"
 hex = "0.4"
-rusqlite = { version = "0.40", features = ["bundled"] }
+rand = "0.8"
+rusqlite = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl"] }
 unicode-normalization = "0.1"
 uuid = { version = "1", features = ["v4"] }
 url = "2"
@@ -35,3 +36,9 @@ sha2 = "0.10"
 
 [dev-dependencies]
 tempfile = "3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security_Cryptography",
+] }

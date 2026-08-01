@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ArchiveRestore, CopyCheck, Database, HardDriveDownload, TriangleAlert } from "lucide-react"
+import { ArchiveRestore, CopyCheck, Database, HardDriveDownload, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -80,7 +80,7 @@ export function SettingsView() {
     try {
       await vaultClient.createBackup()
       setBackups(await vaultClient.listBackups())
-      toast.success("明文备份已创建")
+      toast.success("加密备份已创建")
     } catch (error) {
       toast.error("备份失败", { description: errorMessage(error) })
     } finally {
@@ -111,23 +111,23 @@ export function SettingsView() {
       <header>
         <p>本地设置</p>
         <h1>设置</h1>
-        <span>调整剪贴板清理，并管理仅保存在本机的明文数据库备份。</span>
+        <span>调整剪贴板清理，并管理仅保存在本机的自动加密数据库备份。</span>
       </header>
 
       <div className="settings-grid">
         <Card>
           <CardHeader>
-            <CardTitle>明文存储</CardTitle>
+            <CardTitle>Windows 自动加密</CardTitle>
             <CardDescription>
-              当前数据库和备份都不加密，也没有主密码、锁定或解锁功能。
+              Windows 桌面端使用 SQLCipher 加密数据库，并由当前 Windows 用户的 DPAPI 自动保护随机密钥。
             </CardDescription>
             <CardAction>
-              <TriangleAlert aria-hidden="true" />
+              <ShieldCheck aria-hidden="true" />
             </CardAction>
           </CardHeader>
           <CardContent>
             <p className="settings-empty">
-              任何能读取当前 Windows 用户文件的人或程序都可能直接读取其中内容。项目目前只能使用虚构测试数据。
+              无需主密码，也没有锁定或解锁功能。数据库通常只能在当前 Windows 用户配置文件中自动打开；浏览器开发原型仅驻留内存。项目目前仍只使用虚构测试数据。
             </p>
           </CardContent>
         </Card>
@@ -178,9 +178,9 @@ export function SettingsView() {
 
         <Card className="backup-card">
           <CardHeader>
-            <CardTitle>本机明文备份</CardTitle>
+            <CardTitle>本机加密备份</CardTitle>
             <CardDescription>
-              备份包含完整明文 SQLite 数据库和 SHA-256 校验清单，请勿用于真实账号或密码。
+              备份包含 SQLCipher 数据库、DPAPI 密钥文件和 SHA-256 清单，恢复时需要原 Windows 用户的 DPAPI 凭据。
             </CardDescription>
             <CardAction>
               <Database aria-hidden="true" />
@@ -204,13 +204,13 @@ export function SettingsView() {
                 ))}
               </div>
             ) : (
-              <p className="settings-empty">尚未创建本机明文备份。</p>
+              <p className="settings-empty">尚未创建本机加密备份。</p>
             )}
           </CardContent>
           <CardFooter>
             <Button onClick={() => void createBackup()} disabled={creatingBackup}>
               <HardDriveDownload data-icon="inline-start" />
-              {creatingBackup ? "正在创建…" : "创建明文备份"}
+              {creatingBackup ? "正在创建…" : "创建加密备份"}
             </Button>
           </CardFooter>
         </Card>
@@ -219,7 +219,7 @@ export function SettingsView() {
       <AlertDialog open={Boolean(restoreTarget)} onOpenChange={(open) => !open && setRestoreTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>恢复这份明文备份？</AlertDialogTitle>
+            <AlertDialogTitle>恢复这份加密备份？</AlertDialogTitle>
             <AlertDialogDescription>
               当前数据库会被所选备份替换。恢复前请确认当前内容不需要保留。
             </AlertDialogDescription>

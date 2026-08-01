@@ -2,6 +2,13 @@
 
 > 最后更新日期：2026-08-01
 
+## M3 DPAPI/SQLCipher 自动加密
+
+- 在继续删除全部锁定/解锁界面的前提下，改用当前 Windows 用户 DPAPI 自动保护随机 SQLCipher 数据库密钥。
+- 新增独立 `password-manager.dpapi.db` / `password-manager.dpapi-key` 文件对、严格配对检查和 DPAPI 篡改回归。
+- 备份改为 SQLCipher 导出，并同时验证/恢复 DPAPI 密钥文件；旧明文与旧加密测试库均不迁移。
+- 本地 Rust 24 项测试覆盖 DPAPI、非明文文件头、损坏拒绝和加密备份恢复。
+
 ## M3 范围重置：普通 SQLite、无锁定设计
 
 - 按产品决定删除主密码、锁定/解锁、自动锁定、Windows 生命周期锁定、KDF、密钥包装和 SQLCipher。

@@ -6,6 +6,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
+where perl.exe >nul 2>nul
+if errorlevel 1 (
+  echo Missing perl.exe in PATH. SQLCipher/OpenSSL builds require Perl.
+  exit /b 1
+)
+
 where cl.exe >nul 2>nul
 if not errorlevel 1 exit /b 0
 

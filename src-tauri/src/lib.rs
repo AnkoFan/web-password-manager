@@ -5,6 +5,8 @@ use tauri::Manager;
 
 mod commands;
 mod domain;
+#[cfg(windows)]
+mod dpapi;
 mod repositories;
 mod settings;
 mod storage;

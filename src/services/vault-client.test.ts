@@ -61,7 +61,7 @@ describe("browser prototype local database", () => {
     await expect(vaultClient.listAccounts(website.id)).resolves.toHaveLength(1)
   })
 
-  it("keeps clipboard settings and restores a plaintext prototype backup", async () => {
+  it("keeps clipboard settings and restores an in-memory prototype backup", async () => {
     await expect(
       vaultClient.updateAppSettings({ clipboardClearSeconds: 0 }),
     ).rejects.toThrow("应用设置超出允许范围")

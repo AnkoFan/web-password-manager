@@ -1,51 +1,36 @@
 # 数据库设计
 
-> 状态：普通 bundled SQLite 已实现
+> 状态：Windows DPAPI + SQLCipher 自动加密已实现
 >
 > 最后更新：2026-08-01
 
-## 选型与文件
+## 物理存储
 
-- 数据库：SQLite，通过 `rusqlite` 的 `bundled` 特性编译。
-- 模式：本地单用户、单进程、单活动数据库。
-- 活动文件：应用数据目录中的 `password-manager.db`。
-- 静态加密：无。
-- 主密码、密钥、KDF 和安全头：无。
+- `password-manager.dpapi.db`：SQLCipher 加密 SQLite。
+- `password-manager.dpapi-key`：当前 Windows 用户 DPAPI 保护的随机 256 位数据库密钥。
+- `app-settings.json`：不含业务秘密的剪贴板设置。
 
-新文件名确保旧 `vault.db` 与 `vault.header.json` 不会被自动迁移或覆盖。数据库包含 `plaintext-local-database-v1` 应用标记，用于拒绝无关 SQLite 文件。
+密钥文件具有 `WPMDPK01` magic、显式长度和 64 KiB 上限。数据库密钥只在自动打开期间进入 Rust 零化缓冲区，传给 SQLCipher 后立即释放；DPAPI 返回的原生明文缓冲区在释放前以 volatile 写入清零。
 
-## 逻辑结构
+## 创建与打开
 
-当前 schema v2 包含：
+1. 两个活动文件都不存在时生成随机数据库密钥。
+2. 当前用户 DPAPI 保护密钥，写入独立暂存文件。
+3. 用该密钥创建 SQLCipher 数据库、schema v2 和固定应用标记。
+4. 验证密文/逻辑完整性后同步并提交两个文件。
+5. 后续启动自动用 DPAPI 解密密钥并打开 SQLCipher。
 
-- `metadata`：应用标记与 schema 元数据；
-- `vault_meta`：单一逻辑数据集标识；
-- `categories`：分类、排序和软删除字段；
-- `websites`：网址、分类关系、排序和软删除字段；
-- `accounts`：网站下多账号、排序和软删除字段；
-- `account_fields`：系统角色、自定义标签、字段类型、值和敏感标记；
-- `deletion_groups`：级联删除批次与恢复元数据。
+两个文件只有一个存在时进入恢复错误；不把异常当作空库重新创建。
 
-名称规范化键、外键、唯一约束、CHECK 约束和事务规则继续适用。敏感字段的“敏感”只控制界面遮挡和响应最小化，不代表磁盘加密。
+## 逻辑结构与验证
 
-## 打开与验证
+schema v2 包含 `metadata`、`vault_meta`、`categories`、`websites`、`accounts`、`account_fields` 与 `deletion_groups`。每次打开验证：
 
-每次打开启用外键并验证：
+- SQLCipher `cipher_integrity_check` 无错误行；
+- SQLite `integrity_check` 返回 `ok`；
+- 应用标记、`user_version`、迁移版本与单一 `vault_meta` 有效；
+- 外键和 SQLCipher 内存擦除已启用。
 
-1. `PRAGMA integrity_check`；
-2. 应用标记与 schema 版本；
-3. 必需表存在；
-4. `vault_meta` 只有一行。
+## 兼容边界
 
-不兼容或损坏的现有 `password-manager.db` 不会被当作空数据库重建。
-
-## 写入与恢复
-
-- 多对象变更使用 SQLite 事务。
-- 软删除和恢复按 `deletion_group_id` 保持原子性。
-- 备份使用 SQLite 一致性副本，不直接复制活动数据库字节。
-- 恢复采用暂存、回滚副本和重新打开验证。
-
-## 安全限制
-
-文件头应为 `SQLite format 3`，普通 SQLite 工具可以读取全部表和字段。项目仅允许虚构测试数据。
+不迁移或读取 `password-manager.db` 明文测试库、旧 `vault.db` 或安全头。所有旧文件保持原样。

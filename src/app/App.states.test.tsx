@@ -38,7 +38,7 @@ describe("App startup states", () => {
 
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("复制应用数据目录")
-    expect(alert).toHaveTextContent("恢复已验证的明文备份")
+    expect(alert).toHaveTextContent("DPAPI 用户身份或恢复已验证的加密备份")
 
     fireEvent.click(screen.getByRole("button", { name: "重新检查数据库" }))
 
