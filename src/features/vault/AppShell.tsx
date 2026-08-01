@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
-import { AccountBrowser } from "./components/AccountBrowser"
-import { AccountDetail } from "./components/AccountDetail"
 import {
   DeleteConfirmDialog,
   type DeleteTarget,
@@ -12,6 +10,7 @@ import { SearchResults } from "./components/SearchResults"
 import { SettingsView } from "./components/SettingsView"
 import { TopBar } from "./components/TopBar"
 import { TrashView } from "./components/TrashView"
+import { VaultTable, type VaultEntry } from "./components/VaultTable"
 import {
   VaultEditorDialog,
   type EditorState,
@@ -22,7 +21,6 @@ import {
   vaultClient,
   type AccountDetail as AccountDetailModel,
   type AccountDraft,
-  type AccountSummary,
   type Category,
   type SearchResult,
   type TrashItem,
@@ -44,7 +42,7 @@ export function AppShell() {
   const [view, setView] = useState<VaultView>("vault")
   const [categories, setCategories] = useState<Category[]>([])
   const [websites, setWebsites] = useState<Website[]>([])
-  const [accounts, setAccounts] = useState<AccountSummary[]>([])
+  const [entries, setEntries] = useState<VaultEntry[]>([])
   const [account, setAccount] = useState<AccountDetailModel | null>(null)
   const [trashItems, setTrashItems] = useState<TrashItem[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
@@ -116,9 +114,19 @@ export function AppShell() {
             )
           ? (preferred.categoryId ?? selectedCategoryId)
           : (nextCategories[0]?.id ?? null)
-    const categoryWebsites = nextWebsites.filter(
-      (website) => website.categoryId === categoryId,
-    )
+    const categoryWebsites = nextWebsites.filter((website) => website.categoryId === categoryId)
+    const nextEntries = (
+      await Promise.all(
+        categoryWebsites.map(async (website) => {
+          const summaries = await vaultClient.listAccounts(website.id)
+          if (summaries.length === 0) return [{ website, account: null }]
+          const details = await Promise.all(
+            summaries.map((summary) => vaultClient.getAccount(summary.id)),
+          )
+          return details.map((account) => ({ website, account }))
+        }),
+      )
+    ).flat()
     const websiteId =
       preferred.websiteId === null
         ? null
@@ -128,22 +136,21 @@ export function AppShell() {
             )
           ? (preferred.websiteId ?? selectedWebsiteId)
           : (categoryWebsites[0]?.id ?? null)
-    const nextAccounts = websiteId ? await vaultClient.listAccounts(websiteId) : []
     const accountId =
       preferred.accountId === null
         ? null
-        : nextAccounts.some(
-              (entry) =>
-                entry.id === (preferred.accountId ?? selectedAccountId),
+        : nextEntries.some(
+              (entry) => entry.account?.id === (preferred.accountId ?? selectedAccountId),
             )
           ? (preferred.accountId ?? selectedAccountId)
-          : (nextAccounts[0]?.id ?? null)
-    const nextAccount = accountId ? await vaultClient.getAccount(accountId) : null
+          : (nextEntries.find((entry) => entry.account)?.account?.id ?? null)
+    const selectedEntry = nextEntries.find((entry) => entry.account?.id === accountId)
+    const nextAccount = selectedEntry?.account ?? null
 
     setSelectedCategoryId(categoryId)
-    setSelectedWebsiteId(websiteId)
+    setSelectedWebsiteId(selectedEntry?.website.id ?? websiteId)
     setSelectedAccountId(accountId)
-    setAccounts(nextAccounts)
+    setEntries(nextEntries)
     setAccount(nextAccount)
     setRevealed({})
   }
@@ -202,57 +209,12 @@ export function AppShell() {
   }, [query])
 
   async function selectCategory(categoryId: string) {
-    const website = websites.find((entry) => entry.categoryId === categoryId) ?? null
-    setSelectedCategoryId(categoryId)
-    setSelectedWebsiteId(website?.id ?? null)
-    setSelectedAccountId(null)
-    setAccount(null)
-    setRevealed({})
-    if (!website) {
-      setAccounts([])
-      return
-    }
+    setView("vault")
+    setQuery("")
     try {
-      const nextAccounts = await vaultClient.listAccounts(website.id)
-      setAccounts(nextAccounts)
-      const first = nextAccounts[0]
-      if (first) {
-        setSelectedAccountId(first.id)
-        setAccount(await vaultClient.getAccount(first.id))
-      }
+      await refresh({ categoryId, websiteId: null, accountId: null })
     } catch (error) {
       toast.error("无法读取账号", { description: errorMessage(error) })
-    }
-  }
-
-  async function selectWebsite(websiteId: string) {
-    const website = websites.find((entry) => entry.id === websiteId)
-    if (!website) return
-    setSelectedCategoryId(website.categoryId)
-    setSelectedWebsiteId(websiteId)
-    setSelectedAccountId(null)
-    setAccount(null)
-    setRevealed({})
-    try {
-      const nextAccounts = await vaultClient.listAccounts(websiteId)
-      setAccounts(nextAccounts)
-      const first = nextAccounts[0]
-      if (first) {
-        setSelectedAccountId(first.id)
-        setAccount(await vaultClient.getAccount(first.id))
-      }
-    } catch (error) {
-      toast.error("无法读取账号", { description: errorMessage(error) })
-    }
-  }
-
-  async function selectAccount(accountId: string) {
-    setSelectedAccountId(accountId)
-    setRevealed({})
-    try {
-      setAccount(await vaultClient.getAccount(accountId))
-    } catch (error) {
-      toast.error("无法读取账号详情", { description: errorMessage(error) })
     }
   }
 
@@ -348,15 +310,12 @@ export function AppShell() {
   async function selectSearchResult(result: SearchResult) {
     setQuery("")
     setView("vault")
-    setSelectedCategoryId(result.categoryId)
-    setSelectedWebsiteId(result.websiteId)
-    setRevealed({})
     try {
-      const nextAccounts = await vaultClient.listAccounts(result.websiteId)
-      setAccounts(nextAccounts)
-      const accountId = result.accountId ?? nextAccounts[0]?.id ?? null
-      setSelectedAccountId(accountId)
-      setAccount(accountId ? await vaultClient.getAccount(accountId) : null)
+      await refresh({
+        categoryId: result.categoryId,
+        websiteId: result.websiteId,
+        accountId: result.accountId,
+      })
     } catch (error) {
       toast.error("无法定位搜索结果", { description: errorMessage(error) })
     }
@@ -377,10 +336,29 @@ export function AppShell() {
     <main className="vault-app">
       <PrimaryNavigation
         activeView={view}
+        categories={categories}
+        selectedCategoryId={selectedCategoryId}
         onNavigate={(nextView) => {
           setView(nextView)
           setQuery("")
         }}
+        onSelectCategory={(id) => void selectCategory(id)}
+        onCreateCategory={() => openEditor({ kind: "category" })}
+        onEditCategory={() =>
+          category ? openEditor({ kind: "category", category }) : undefined
+        }
+        onDeleteCategory={() =>
+          category
+            ? openDeleteDialog({
+                type: "category",
+                id: category.id,
+                name: category.name,
+                affectedCount: websites.filter(
+                  (entry) => entry.categoryId === category.id,
+                ).length,
+              })
+            : undefined
+        }
       />
       <section className="workspace">
         <TopBar
@@ -401,106 +379,56 @@ export function AppShell() {
         ) : view === "settings" ? (
           <SettingsView />
         ) : (
-          <div className="content-grid">
-            <AccountBrowser
-              categories={categories}
-              websites={websites}
-              accounts={accounts}
-              selectedCategoryId={selectedCategoryId}
-              selectedWebsiteId={selectedWebsiteId}
-              selectedAccountId={selectedAccountId}
-              onSelectCategory={(id) => void selectCategory(id)}
-              onSelectWebsite={(id) => void selectWebsite(id)}
-              onSelectAccount={(id) => void selectAccount(id)}
-              onCreateCategory={() => openEditor({ kind: "category" })}
-              onEditCategory={() =>
-                category ? openEditor({ kind: "category", category }) : undefined
-              }
-              onDeleteCategory={() =>
-                category
-                  ? openDeleteDialog({
-                      type: "category",
-                      id: category.id,
-                      name: category.name,
-                      affectedCount: websites.filter(
-                        (entry) => entry.categoryId === category.id,
-                      ).length,
-                    })
-                  : undefined
-              }
-              onCreateWebsite={() =>
-                selectedCategoryId
-                  ? openEditor({ kind: "website", categoryId: selectedCategoryId })
-                  : undefined
-              }
-              onEditWebsite={() =>
-                website
-                  ? openEditor({
-                      kind: "website",
-                      website,
-                      categoryId: website.categoryId,
-                    })
-                  : undefined
-              }
-              onDeleteWebsite={() =>
-                website
-                  ? openDeleteDialog({
-                      type: "website",
-                      id: website.id,
-                      name: website.name,
-                      affectedCount: accounts.length,
-                    })
-                  : undefined
-              }
-              onCreateAccount={() =>
-                selectedWebsiteId
-                  ? openEditor({ kind: "account", websiteId: selectedWebsiteId })
-                  : undefined
-              }
-            />
-            <AccountDetail
-              account={account}
-              website={website}
-              revealed={revealed}
-              onCopyField={copyField}
-              onToggleReveal={toggleReveal}
-              onCopyUrl={async () => {
-                if (!website) return
-                try {
-                  await vaultClient.copyUrl(website.id)
-                  toast.success("已复制网址")
-                } catch (error) {
-                  toast.error("复制网址失败", { description: errorMessage(error) })
-                }
-              }}
-              onOpenWebsite={async () => {
-                if (!website) return
-                try {
-                  await vaultClient.openWebsite(website.id)
-                } catch (error) {
-                  toast.error("无法打开网址", { description: errorMessage(error) })
-                }
-              }}
-              onEdit={() =>
-                account && selectedWebsiteId
-                  ? openEditor({
-                      kind: "account",
-                      account,
-                      websiteId: selectedWebsiteId,
-                    })
-                  : undefined
-              }
-              onDelete={() =>
-                account
-                  ? openDeleteDialog({
-                      type: "account",
-                      id: account.id,
-                      name: account.displayName,
-                    })
-                  : undefined
-              }
-            />
-          </div>
+          <VaultTable
+            category={category}
+            entries={entries}
+            selectedAccountId={selectedAccountId}
+            revealed={revealed}
+            onCreateWebsite={() =>
+              selectedCategoryId
+                ? openEditor({ kind: "website", categoryId: selectedCategoryId })
+                : undefined
+            }
+            onEditWebsite={(selectedWebsite) =>
+              openEditor({
+                kind: "website",
+                website: selectedWebsite,
+                categoryId: selectedWebsite.categoryId,
+              })
+            }
+            onDeleteWebsite={(selectedWebsite) =>
+              openDeleteDialog({
+                type: "website",
+                id: selectedWebsite.id,
+                name: selectedWebsite.name,
+                affectedCount: entries.filter(
+                  (entry) => entry.website.id === selectedWebsite.id && entry.account,
+                ).length,
+              })
+            }
+            onCreateAccount={(selectedWebsite) =>
+              openEditor({ kind: "account", websiteId: selectedWebsite.id })
+            }
+            onEditAccount={(selectedWebsite, selectedAccount) => {
+              setSelectedWebsiteId(selectedWebsite.id)
+              setSelectedAccountId(selectedAccount.id)
+              setAccount(selectedAccount)
+              openEditor({
+                kind: "account",
+                account: selectedAccount,
+                websiteId: selectedWebsite.id,
+              })
+            }}
+            onDeleteAccount={(selectedAccount) =>
+              openDeleteDialog({
+                type: "account",
+                id: selectedAccount.id,
+                name: selectedAccount.displayName,
+              })
+            }
+            onCopyField={copyField}
+            onToggleReveal={toggleReveal}
+          />
         )}
       </section>
 

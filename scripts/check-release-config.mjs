@@ -23,8 +23,9 @@ assert.equal(
   "the NSIS safety hooks must remain enabled",
 )
 assert.match(nsisHooks, /!macro NSIS_HOOK_PREINSTALL/)
-assert.match(nsisHooks, /FileOpen \$9 .*web-password-manager\.exe.* a/)
-assert.match(nsisHooks, /SetErrorLevel 32/)
+assert.match(nsisHooks, /CheckIfAppIsRunning/)
+assert.doesNotMatch(nsisHooks, /FileOpen \$9 .*web-password-manager\.exe.* a/)
+assert.doesNotMatch(nsisHooks, /SetErrorLevel 32/)
 assert.match(nsisHooks, /!macro NSIS_HOOK_PREUNINSTALL/)
 assert.match(nsisHooks, /"\/DELETEAPPDATA"/)
 
