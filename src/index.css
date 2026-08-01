@@ -253,11 +253,11 @@
   }
 
   .workspace {
-    @apply grid min-h-0 min-w-0 grid-rows-[68px_minmax(0,1fr)] overflow-hidden;
+    @apply grid min-h-0 min-w-0 grid-rows-[56px_minmax(0,1fr)] overflow-hidden;
   }
 
   .top-bar {
-    @apply flex min-w-0 items-center justify-between gap-6 border-b bg-card px-7;
+    @apply flex min-w-0 items-center justify-center border-b bg-card px-7;
   }
 
   .breadcrumbs {
@@ -277,7 +277,7 @@
   }
 
   .top-actions {
-    @apply flex min-w-0 flex-1 items-center justify-end gap-3;
+    @apply flex min-w-0 flex-1 items-center justify-center;
   }
 
   .search-control {
@@ -301,11 +301,11 @@
   }
 
   .vault-table-view {
-    @apply min-h-0 overflow-y-auto px-[clamp(1.5rem,3.5vw,4rem)] py-8;
+    @apply flex min-h-0 flex-col overflow-hidden px-[clamp(1.5rem,3.5vw,4rem)] pt-4 pb-0;
   }
 
   .vault-table-toolbar {
-    @apply flex items-end justify-between gap-6 pb-6;
+    @apply flex shrink-0 items-end justify-between gap-6 pb-4;
   }
 
   .vault-table-toolbar > div {
@@ -325,7 +325,7 @@
   }
 
   .vault-table-frame {
-    @apply overflow-hidden rounded-xl border bg-card shadow-xs;
+    @apply min-h-0 flex-1 overflow-auto rounded-t-xl border border-b-0 bg-card shadow-xs;
   }
 
   .vault-table {
@@ -333,7 +333,7 @@
   }
 
   .vault-table th {
-    @apply h-11 border-b bg-muted/45 px-5 text-xs font-semibold tracking-[0.04em] text-muted-foreground;
+    @apply sticky top-0 z-10 h-11 border-b bg-muted px-5 text-xs font-semibold tracking-[0.04em] text-muted-foreground;
   }
 
   .vault-table th:nth-child(1) {
@@ -357,7 +357,7 @@
   }
 
   .vault-table td {
-    @apply h-[84px] border-b px-5 align-middle text-sm last:border-b-0;
+    @apply h-[92px] border-b px-5 align-middle text-sm last:border-b-0;
   }
 
   .vault-table tbody tr:last-child td {
@@ -382,11 +382,19 @@
   }
 
   .vault-website-cell {
-    @apply gap-3;
+    @apply relative gap-3;
   }
 
   .vault-website-cell > span:nth-child(2) {
     @apply flex min-w-0 flex-1 flex-col gap-0.5;
+  }
+
+  .vault-site-add-account {
+    @apply mt-1 inline-flex w-fit items-center gap-1 text-[11px] font-medium text-primary hover:underline;
+  }
+
+  .vault-site-add-account svg {
+    @apply size-3;
   }
 
   .vault-website-cell strong,
@@ -427,7 +435,7 @@
   }
 
   .website-row-actions {
-    @apply shrink-0 opacity-0 transition-opacity group-hover:opacity-100;
+    @apply absolute right-0 shrink-0 rounded-md border bg-card p-0.5 opacity-0 shadow-sm transition-opacity;
   }
 
   .vault-website-cell:hover .website-row-actions,
@@ -456,8 +464,32 @@
     @apply shrink-0 gap-0.5;
   }
 
+  .vault-inline-field {
+    @apply flex min-w-0 items-center gap-1;
+  }
+
+  .vault-inline-field input {
+    @apply min-w-0 flex-1;
+  }
+
+  .vault-add-account-link {
+    @apply inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline;
+  }
+
+  .vault-add-account-link svg {
+    @apply size-3.5;
+  }
+
   .vault-row-actions {
     @apply justify-end gap-1.5;
+  }
+
+  .vault-row-error td {
+    @apply bg-destructive/5;
+  }
+
+  .vault-row-error-message {
+    @apply mt-1 text-right text-[11px] text-destructive;
   }
 
   .vault-actions-heading {
@@ -876,12 +908,7 @@
   }
 
   .top-bar {
-    gap: 1rem;
     padding-inline: 1rem;
-  }
-
-  .breadcrumbs {
-    flex: 1;
   }
 
   .search-control {
@@ -970,25 +997,13 @@
   }
 
   .top-bar {
-    gap: 0.5rem;
     padding-inline: 0.75rem;
-  }
-
-  .breadcrumbs {
-    max-width: 30%;
-    white-space: nowrap;
-  }
-
-  .breadcrumb-part:not(:last-child),
-  .breadcrumb-part:last-child > svg {
-    display: none;
   }
 
   .top-actions {
     min-width: 0;
     flex: 1;
-    justify-content: flex-end;
-    gap: 0.5rem;
+    justify-content: center;
   }
 
   .search-control {
@@ -1007,11 +1022,11 @@
   }
 
   .vault-table-view {
-    padding: 1.25rem;
+    padding: 1rem 1.25rem 0;
   }
 
   .vault-table-frame {
-    overflow: visible;
+    overflow-y: auto;
     border: 0;
     background: transparent;
     box-shadow: none;
@@ -1134,10 +1149,6 @@
   .nav-item {
     width: 2.25rem;
     height: 2.25rem;
-  }
-
-  .breadcrumbs {
-    max-width: 28%;
   }
 
   .search-control kbd {

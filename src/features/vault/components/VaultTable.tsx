@@ -1,4 +1,6 @@
+import { useMemo, useState } from "react"
 import {
+  Check,
   Copy,
   Eye,
   EyeOff,
@@ -7,14 +9,17 @@ import {
   Pencil,
   Plus,
   Trash2,
-  UserRound,
+  X,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type {
   AccountDetail,
+  AccountDraft,
+  AccountField,
+  AccountFieldDraft,
   Category,
   Website,
 } from "@/services/vault-client"
@@ -32,132 +37,260 @@ type VaultTableProps = {
   onCreateWebsite: () => void
   onEditWebsite: (website: Website) => void
   onDeleteWebsite: (website: Website) => void
-  onCreateAccount: (website: Website) => void
-  onEditAccount: (website: Website, account: AccountDetail) => void
+  onSaveAccount: (draft: AccountDraft) => Promise<void>
   onDeleteAccount: (account: AccountDetail) => void
   onOpenWebsite: (website: Website) => Promise<void>
   onToggleReveal: (fieldId: string, label: string) => Promise<void>
   onCopyField: (fieldId: string, label: string) => Promise<void>
 }
 
-function AccountIdentifierCell({
-  account,
-  revealed,
-  onToggleReveal,
-  onCopyField,
-}: Pick<
-  VaultTableProps,
-  "revealed" | "onToggleReveal" | "onCopyField"
-> & { account: AccountDetail | null }) {
-  const accountField = account?.fields.find((field) => field.systemRole === "username")
-    ?? account?.fields.find((field) => field.systemRole === "email")
-
-  if (!accountField) {
-    return <span className="vault-cell-placeholder">未设置</span>
-  }
-
-  const visibleValue = accountField.isSensitive
-    ? revealed[accountField.id]
-    : accountField.value
-  const shownValue = visibleValue
-    ?? (accountField.isSensitive ? "••••••••" : "未设置")
-
-  return (
-    <div className="vault-identifier-cell">
-      <span className={cn("vault-identifier-value", accountField.isSensitive && !visibleValue && "masked")}>
-        {shownValue}
-      </span>
-      <div className="vault-inline-actions">
-        {accountField.isSensitive ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={visibleValue ? "隐藏账号" : "显示账号"}
-                onClick={() => void onToggleReveal(accountField.id, accountField.label)}
-              >
-                {visibleValue ? <EyeOff /> : <Eye />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{visibleValue ? "隐藏账号" : "临时显示账号"}</TooltipContent>
-          </Tooltip>
-        ) : null}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="复制账号"
-              onClick={() => void onCopyField(accountField.id, accountField.label)}
-            >
-              <Copy />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>复制账号</TooltipContent>
-        </Tooltip>
-      </div>
-    </div>
-  )
+type WebsiteGroup = {
+  website: Website
+  accounts: AccountDetail[]
 }
 
-function PasswordCell({
+function systemField(account: AccountDetail | null, role: "username" | "password") {
+  if (role === "username") {
+    return account?.fields.find((field) => field.systemRole === "username")
+      ?? account?.fields.find((field) => field.systemRole === "email")
+      ?? null
+  }
+  return account?.fields.find(
+    (field) => field.systemRole === "password" || field.fieldType === "password",
+  ) ?? null
+}
+
+function preservedField(field: AccountField): AccountFieldDraft {
+  return {
+    id: field.id,
+    systemRole: field.systemRole,
+    label: field.label,
+    fieldType: field.fieldType,
+    value: field.isSensitive ? null : (field.value ?? ""),
+    keepExistingValue: field.isSensitive,
+    isSensitive: field.isSensitive,
+  }
+}
+
+type InlineAccountRowProps = Pick<
+  VaultTableProps,
+  | "revealed"
+  | "onSaveAccount"
+  | "onDeleteAccount"
+  | "onOpenWebsite"
+  | "onToggleReveal"
+  | "onCopyField"
+> & {
+  website: Website
+  account: AccountDetail | null
+  firstWebsiteRow: boolean
+  selected: boolean
+  onAddRow: () => void
+  onEditWebsite: (website: Website) => void
+  onDeleteWebsite: (website: Website) => void
+  onRemoveDraft?: () => void
+}
+
+function InlineAccountRow({
+  website,
   account,
+  firstWebsiteRow,
+  selected,
   revealed,
+  onSaveAccount,
+  onDeleteAccount,
+  onOpenWebsite,
   onToggleReveal,
   onCopyField,
-}: Pick<
-  VaultTableProps,
-  "revealed" | "onToggleReveal" | "onCopyField"
-> & { account: AccountDetail | null }) {
-  const passwordField = account?.fields.find(
-    (field) => field.systemRole === "password" || field.fieldType === "password",
-  )
+  onAddRow,
+  onEditWebsite,
+  onDeleteWebsite,
+  onRemoveDraft,
+}: InlineAccountRowProps) {
+  const usernameField = systemField(account, "username")
+  const passwordField = systemField(account, "password")
+  const [name, setName] = useState(account?.displayName ?? "")
+  const [username, setUsername] = useState(usernameField?.value ?? "")
+  const [password, setPassword] = useState("")
+  const [usernameDirty, setUsernameDirty] = useState(false)
+  const [passwordDirty, setPasswordDirty] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState("")
 
-  if (!passwordField) {
-    return <span className="vault-cell-placeholder">未设置</span>
+  const revealedUsername = usernameField ? revealed[usernameField.id] : undefined
+  const revealedPassword = passwordField ? revealed[passwordField.id] : undefined
+  const usernameValue = usernameDirty ? username : (revealedUsername ?? username)
+  const passwordValue = passwordDirty ? password : (revealedPassword ?? "")
+  const passwordVisible = passwordDirty ? showNewPassword : Boolean(revealedPassword)
+
+  async function save() {
+    if (!name.trim() || !usernameValue.trim() || (!passwordField && !passwordValue)) {
+      setError("请填写名称、账号和密码。")
+      return
+    }
+
+    const fields = account ? account.fields.map(preservedField) : []
+    const usernameIndex = usernameField
+      ? fields.findIndex((field) => field.id === usernameField.id)
+      : -1
+    const passwordIndex = passwordField
+      ? fields.findIndex((field) => field.id === passwordField.id)
+      : -1
+
+    const nextUsername: AccountFieldDraft = {
+      id: usernameField?.id,
+      systemRole: usernameField?.systemRole ?? "username",
+      label: usernameField?.label ?? "用户名",
+      fieldType: usernameField?.fieldType ?? "text",
+      value: usernameDirty || !account ? usernameValue : usernameField?.isSensitive ? null : usernameValue,
+      keepExistingValue: Boolean(account && usernameField?.isSensitive && !usernameDirty),
+      isSensitive: usernameField?.isSensitive ?? false,
+    }
+    const nextPassword: AccountFieldDraft = {
+      id: passwordField?.id,
+      systemRole: "password",
+      label: passwordField?.label ?? "密码",
+      fieldType: "password",
+      value: passwordDirty || !account ? passwordValue : null,
+      keepExistingValue: Boolean(account && passwordField && !passwordDirty),
+      isSensitive: true,
+    }
+
+    if (usernameIndex >= 0) fields[usernameIndex] = nextUsername
+    else fields.push(nextUsername)
+    if (passwordIndex >= 0) fields[passwordIndex] = nextPassword
+    else fields.push(nextPassword)
+
+    setPending(true)
+    setError("")
+    try {
+      await onSaveAccount({
+        id: account?.id,
+        websiteId: website.id,
+        displayName: name,
+        fields,
+      })
+      onRemoveDraft?.()
+      setUsernameDirty(false)
+      setPasswordDirty(false)
+      setPassword("")
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "保存失败，请重试。")
+    } finally {
+      setPending(false)
+    }
   }
 
-  const visibleValue = revealed[passwordField.id]
+  async function togglePassword() {
+    if (passwordDirty || !passwordField) {
+      setShowNewPassword((current) => !current)
+      return
+    }
+    await onToggleReveal(passwordField.id, passwordField.label)
+  }
 
   return (
-    <div className="vault-password-cell">
-      <code className={cn("vault-password-value", !visibleValue && "masked")}>
-        {visibleValue ?? "••••••••••••"}
-      </code>
-      <div className="vault-inline-actions">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={visibleValue ? "隐藏密码" : "显示密码"}
-              onClick={() => void onToggleReveal(passwordField.id, passwordField.label)}
-            >
-              {visibleValue ? <EyeOff /> : <Eye />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{visibleValue ? "隐藏密码" : "临时显示密码"}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="复制密码"
-              onClick={() => void onCopyField(passwordField.id, passwordField.label)}
-            >
+    <tr className={cn(selected && "vault-row-selected", error && "vault-row-error")}>
+      <td data-label="网站">
+        {firstWebsiteRow ? (
+          <div className="vault-website-cell">
+            <span className="vault-row-icon">
+              <Globe2 aria-hidden="true" />
+            </span>
+            <span>
+              <strong>{website.name}</strong>
+              <small>{website.primaryUrl ?? "未设置网址"}</small>
+              <button type="button" className="vault-site-add-account" onClick={onAddRow}>
+                <Plus aria-hidden="true" /> 添加账号
+              </button>
+            </span>
+            <div className="vault-inline-actions website-row-actions">
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={`编辑网站 ${website.name}`} onClick={() => onEditWebsite(website)}>
+                <Pencil />
+              </Button>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={`删除网站 ${website.name}`} onClick={() => onDeleteWebsite(website)}>
+                <Trash2 />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="vault-add-account-link" onClick={onAddRow}>
+            <Plus aria-hidden="true" /> 添加账号
+          </button>
+        )}
+      </td>
+      <td data-label="名称">
+        <Input
+          aria-label={`${website.name} 的账号名称`}
+          placeholder="例如：工作账号"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      </td>
+      <td data-label="账号">
+        <div className="vault-inline-field">
+          <Input
+            aria-label={`${website.name} 的登录账号`}
+            placeholder={usernameField?.isSensitive && !revealedUsername ? "已保存（输入新账号替换）" : "用户名或邮箱"}
+            value={usernameValue}
+            onChange={(event) => {
+              setUsername(event.target.value)
+              setUsernameDirty(true)
+            }}
+          />
+          {account && usernameField ? (
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="复制账号" onClick={() => void onCopyField(usernameField.id, usernameField.label)}>
               <Copy />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>复制密码</TooltipContent>
-        </Tooltip>
-      </div>
-    </div>
+          ) : null}
+        </div>
+      </td>
+      <td data-label="密码">
+        <div className="vault-inline-field">
+          <Input
+            aria-label={`${website.name} 的密码`}
+            type={passwordVisible ? "text" : "password"}
+            placeholder={account && passwordField ? "已保存（输入新密码替换）" : "输入密码"}
+            value={passwordValue}
+            onChange={(event) => {
+              setPassword(event.target.value)
+              setPasswordDirty(true)
+            }}
+          />
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={passwordVisible ? "隐藏密码" : "显示密码"} onClick={() => void togglePassword()}>
+            {passwordVisible ? <EyeOff /> : <Eye />}
+          </Button>
+          {account && passwordField ? (
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="复制密码" onClick={() => void onCopyField(passwordField.id, passwordField.label)}>
+              <Copy />
+            </Button>
+          ) : null}
+        </div>
+      </td>
+      <td data-label="操作">
+        <div className="vault-row-actions">
+          <Button type="button" size="sm" disabled={pending} onClick={() => void save()}>
+            <Check data-icon="inline-start" />
+            {pending ? "保存中…" : "保存"}
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled={!website.primaryUrl} onClick={() => void onOpenWebsite(website)}>
+            <ExternalLink data-icon="inline-start" />
+            打开网址
+          </Button>
+          {account ? (
+            <Button type="button" variant="ghost" size="sm" className="vault-delete-action" onClick={() => onDeleteAccount(account)}>
+              <Trash2 data-icon="inline-start" /> 删除
+            </Button>
+          ) : onRemoveDraft ? (
+            <Button type="button" variant="ghost" size="sm" onClick={onRemoveDraft}>
+              <X data-icon="inline-start" /> 取消
+            </Button>
+          ) : null}
+        </div>
+        {error ? <p className="vault-row-error-message">{error}</p> : null}
+      </td>
+    </tr>
   )
 }
 
@@ -169,13 +302,37 @@ export function VaultTable({
   onCreateWebsite,
   onEditWebsite,
   onDeleteWebsite,
-  onCreateAccount,
-  onEditAccount,
+  onSaveAccount,
   onDeleteAccount,
   onOpenWebsite,
   onToggleReveal,
   onCopyField,
 }: VaultTableProps) {
+  const [draftRows, setDraftRows] = useState<Record<string, string[]>>({})
+  const groups = useMemo(() => {
+    const grouped = new Map<string, WebsiteGroup>()
+    for (const entry of entries) {
+      const group = grouped.get(entry.website.id) ?? { website: entry.website, accounts: [] }
+      if (entry.account) group.accounts.push(entry.account)
+      grouped.set(entry.website.id, group)
+    }
+    return [...grouped.values()]
+  }, [entries])
+
+  function addDraftRow(websiteId: string) {
+    setDraftRows((current) => ({
+      ...current,
+      [websiteId]: [...(current[websiteId] ?? []), crypto.randomUUID()],
+    }))
+  }
+
+  function removeDraftRow(websiteId: string, rowId: string) {
+    setDraftRows((current) => ({
+      ...current,
+      [websiteId]: (current[websiteId] ?? []).filter((id) => id !== rowId),
+    }))
+  }
+
   if (!category) {
     return (
       <section className="vault-table-empty" aria-label="保险库内容">
@@ -186,17 +343,18 @@ export function VaultTable({
     )
   }
 
+  const accountCount = entries.filter((entry) => entry.account).length
+
   return (
     <section className="vault-table-view" aria-label={`${category.name}中的账号`}>
       <header className="vault-table-toolbar">
         <div>
           <p>当前分类</p>
           <h1>{category.name}</h1>
-          <span>{entries.filter((entry) => entry.account).length} 个账号</span>
+          <span>{accountCount} 个账号</span>
         </div>
         <Button type="button" onClick={onCreateWebsite}>
-          <Plus data-icon="inline-start" />
-          添加网站
+          <Plus data-icon="inline-start" /> 添加网站
         </Button>
       </header>
 
@@ -204,10 +362,9 @@ export function VaultTable({
         <div className="vault-table-empty vault-table-empty-bordered">
           <Globe2 aria-hidden="true" />
           <h2>这个分类还没有网站</h2>
-          <p>添加网站后，可以继续创建一个或多个账号。</p>
+          <p>添加网站后，可以直接在表格中填写一个或多个账号。</p>
           <Button type="button" variant="outline" onClick={onCreateWebsite}>
-            <Plus data-icon="inline-start" />
-            添加网站
+            <Plus data-icon="inline-start" /> 添加网站
           </Button>
         </div>
       ) : (
@@ -223,129 +380,32 @@ export function VaultTable({
               </tr>
             </thead>
             <tbody>
-              {entries.map(({ website, account }, index) => {
-                const previousWebsiteId = entries[index - 1]?.website.id
-                const firstWebsiteRow = previousWebsiteId !== website.id
-
-                return (
-                  <tr
-                    key={`${website.id}-${account?.id ?? "empty"}`}
-                    className={cn(
-                      account?.id === selectedAccountId && "vault-row-selected",
-                    )}
-                  >
-                    <td data-label="网站">
-                      {firstWebsiteRow ? (
-                        <div className="vault-website-cell">
-                          <span className="vault-row-icon">
-                            <Globe2 aria-hidden="true" />
-                          </span>
-                          <span>
-                            <strong>{website.name}</strong>
-                            <small>{website.primaryUrl ?? "未设置网址"}</small>
-                          </span>
-                          <div className="vault-inline-actions website-row-actions">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`编辑网站 ${website.name}`}
-                              onClick={() => onEditWebsite(website)}
-                            >
-                              <Pencil />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`删除网站 ${website.name}`}
-                              onClick={() => onDeleteWebsite(website)}
-                            >
-                              <Trash2 />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="vault-same-site">同上</span>
-                      )}
-                    </td>
-                    <td data-label="名称">
-                      {account ? (
-                        <div className="vault-account-cell">
-                          <span className="vault-row-icon vault-row-icon-muted">
-                            <UserRound aria-hidden="true" />
-                          </span>
-                          <strong>{account.displayName}</strong>
-                        </div>
-                      ) : (
-                        <span className="vault-cell-placeholder">尚未添加账号</span>
-                      )}
-                    </td>
-                    <td data-label="账号">
-                      <AccountIdentifierCell
-                        account={account}
-                        revealed={revealed}
-                        onToggleReveal={onToggleReveal}
-                        onCopyField={onCopyField}
-                      />
-                    </td>
-                    <td data-label="密码">
-                      <PasswordCell
-                        account={account}
-                        revealed={revealed}
-                        onToggleReveal={onToggleReveal}
-                        onCopyField={onCopyField}
-                      />
-                    </td>
-                    <td data-label="操作">
-                      <div className="vault-row-actions">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={!website.primaryUrl}
-                          onClick={() => void onOpenWebsite(website)}
-                        >
-                          <ExternalLink data-icon="inline-start" />
-                          打开网址
-                        </Button>
-                        {account ? (
-                          <>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onEditAccount(website, account)}
-                            >
-                              <Pencil data-icon="inline-start" />
-                              编辑
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="vault-delete-action"
-                              onClick={() => onDeleteAccount(account)}
-                            >
-                              <Trash2 data-icon="inline-start" />
-                              删除
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onCreateAccount(website)}
-                          >
-                            <Plus data-icon="inline-start" />
-                            添加账号
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
+              {groups.flatMap(({ website, accounts }) => {
+                const automaticEmptyRow = accounts.length === 0
+                const rows: Array<{ key: string; account: AccountDetail | null; removable?: boolean }> = [
+                  ...accounts.map((account) => ({ key: account.id, account })),
+                  ...(automaticEmptyRow ? [{ key: `empty-${website.id}`, account: null }] : []),
+                  ...(draftRows[website.id] ?? []).map((key) => ({ key, account: null, removable: true })),
+                ]
+                return rows.map((row, index) => (
+                  <InlineAccountRow
+                    key={row.key}
+                    website={website}
+                    account={row.account}
+                    firstWebsiteRow={index === 0}
+                    selected={row.account?.id === selectedAccountId}
+                    revealed={revealed}
+                    onSaveAccount={onSaveAccount}
+                    onDeleteAccount={onDeleteAccount}
+                    onOpenWebsite={onOpenWebsite}
+                    onToggleReveal={onToggleReveal}
+                    onCopyField={onCopyField}
+                    onAddRow={() => addDraftRow(website.id)}
+                    onEditWebsite={onEditWebsite}
+                    onDeleteWebsite={onDeleteWebsite}
+                    onRemoveDraft={row.removable ? () => removeDraftRow(website.id, row.key) : undefined}
+                  />
+                ))
               })}
             </tbody>
           </table>

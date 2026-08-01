@@ -19,7 +19,6 @@ import { shouldFocusGlobalSearch } from "./keyboard"
 
 import {
   vaultClient,
-  type AccountDetail as AccountDetailModel,
   type AccountDraft,
   type Category,
   type SearchResult,
@@ -43,7 +42,6 @@ export function AppShell() {
   const [categories, setCategories] = useState<Category[]>([])
   const [websites, setWebsites] = useState<Website[]>([])
   const [entries, setEntries] = useState<VaultEntry[]>([])
-  const [account, setAccount] = useState<AccountDetailModel | null>(null)
   const [trashItems, setTrashItems] = useState<TrashItem[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null)
@@ -145,13 +143,11 @@ export function AppShell() {
           ? (preferred.accountId ?? selectedAccountId)
           : (nextEntries.find((entry) => entry.account)?.account?.id ?? null)
     const selectedEntry = nextEntries.find((entry) => entry.account?.id === accountId)
-    const nextAccount = selectedEntry?.account ?? null
 
     setSelectedCategoryId(categoryId)
     setSelectedWebsiteId(selectedEntry?.website.id ?? websiteId)
     setSelectedAccountId(accountId)
     setEntries(nextEntries)
-    setAccount(nextAccount)
     setRevealed({})
   }
 
@@ -323,15 +319,6 @@ export function AppShell() {
 
   const category =
     categories.find((entry) => entry.id === selectedCategoryId) ?? null
-  const website =
-    websites.find((entry) => entry.id === selectedWebsiteId) ?? null
-  const breadcrumbs =
-    view === "trash"
-      ? ["回收站"]
-      : view === "settings"
-        ? ["设置"]
-      : ["保险库", category?.name ?? "未选择分类", website?.name ?? "未选择网站"]
-
   return (
     <main className="vault-app">
       <PrimaryNavigation
@@ -362,7 +349,6 @@ export function AppShell() {
       />
       <section className="workspace">
         <TopBar
-          breadcrumbs={breadcrumbs}
           query={query}
           onQueryChange={setQuery}
         />
@@ -406,19 +392,7 @@ export function AppShell() {
                 ).length,
               })
             }
-            onCreateAccount={(selectedWebsite) =>
-              openEditor({ kind: "account", websiteId: selectedWebsite.id })
-            }
-            onEditAccount={(selectedWebsite, selectedAccount) => {
-              setSelectedWebsiteId(selectedWebsite.id)
-              setSelectedAccountId(selectedAccount.id)
-              setAccount(selectedAccount)
-              openEditor({
-                kind: "account",
-                account: selectedAccount,
-                websiteId: selectedWebsite.id,
-              })
-            }}
+            onSaveAccount={saveAccount}
             onDeleteAccount={(selectedAccount) =>
               openDeleteDialog({
                 type: "account",
@@ -444,16 +418,13 @@ export function AppShell() {
           key={`${editor.kind}-${
             editor.kind === "category"
               ? (editor.category?.id ?? "new")
-              : editor.kind === "website"
-                ? (editor.website?.id ?? "new")
-                : (editor.account?.id ?? "new")
+              : (editor.website?.id ?? "new")
           }`}
           editor={editor}
           categories={categories}
           onClose={closeEditor}
           onSaveCategory={saveCategory}
           onSaveWebsite={saveWebsite}
-          onSaveAccount={saveAccount}
         />
       ) : null}
       {deleteTarget ? (
