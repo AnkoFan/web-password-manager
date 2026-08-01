@@ -20,7 +20,7 @@
 | 产物 | 字节 | SHA-256 | 签名 |
 | --- | ---: | --- | --- |
 | `WebPasswordManager M3 Install Test_0.1.0_x64-setup.exe` | 210,610,759 | `AF59F0F36040C6AB4CE0DD57F75D8371EE39A299560BE75109655BE170FFFBCC` | 未签名 |
-| `WebPasswordManager M3 Install Test_0.1.1_x64-setup.exe` | 216,775,528 | `1D794FF4A5903C7F16B923A62E9E8DCB07D2783D8B67D861A9384D55EBA58120` | 未签名 |
+| `WebPasswordManager M3 Install Test_0.1.1_x64-setup.exe` | 216,775,403 | `3F6178C6B12B6D420D77C1257BE44B9B291942B5BB6FBBB0200FB162CA77AECB` | 未签名 |
 
 产物位于本机忽略的 `src-tauri/target/release/bundle/nsis/`，仅供技术验收，不得发布。
 
@@ -39,7 +39,7 @@
 | 解除占用后升级 | 退出码 0；注册表为 0.1.1，程序哈希变化，虚构 sentinel 保留 |
 | 显式 `/DELETEAPPDATA` 卸载 | 退出码 0；仅隔离 identifier 的安装目录、卸载注册项、`%APPDATA%` 测试数据被删除 |
 | MIT 许可证打包 | 生成的 NSIS `LICENSE` 宏指向随包复制的 `license_file`，可见安装流程包含许可证页 |
-| 测试清理 | 隔离应用数据和临时 Git worktree 已删除 |
+| 测试清理 | 焦点与纯键盘复测后再次执行 `/DELETEAPPDATA`；退出码 0，隔离安装目录、Local/Roaming 数据和卸载注册项均不存在；临时 Git worktree 已删除 |
 
 测试只创建了 `M3-TEST-ONLY-INSTALL-SENTINEL.txt`，没有读取、复制或修改现有生产 identifier 的保险库文件。
 

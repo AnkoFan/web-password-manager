@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { AccountBrowser } from "./components/AccountBrowser"
@@ -60,6 +60,46 @@ export function AppShell({ onLock }: AppShellProps) {
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [loading, setLoading] = useState(true)
+  const editorTriggerRef = useRef<HTMLElement | null>(null)
+  const deleteTriggerRef = useRef<HTMLElement | null>(null)
+
+  function captureDialogTrigger(ref: { current: HTMLElement | null }) {
+    ref.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  }
+
+  function restoreDialogFocus(target: HTMLElement | null) {
+    window.setTimeout(() => {
+      if (target?.isConnected && !target.matches(":disabled")) {
+        target.focus()
+        return
+      }
+      document.getElementById("global-search")?.focus()
+    }, 0)
+  }
+
+  function openEditor(nextEditor: EditorState) {
+    captureDialogTrigger(editorTriggerRef)
+    setEditor(nextEditor)
+  }
+
+  function closeEditor() {
+    const trigger = editorTriggerRef.current
+    editorTriggerRef.current = null
+    setEditor(null)
+    restoreDialogFocus(trigger)
+  }
+
+  function openDeleteDialog(target: DeleteTarget) {
+    captureDialogTrigger(deleteTriggerRef)
+    setDeleteTarget(target)
+  }
+
+  function closeDeleteDialog() {
+    const trigger = deleteTriggerRef.current
+    deleteTriggerRef.current = null
+    setDeleteTarget(null)
+    restoreDialogFocus(trigger)
+  }
 
   async function refresh(preferred: PreferredSelection = {}) {
     const [nextCategories, nextWebsites, nextTrash] = await Promise.all([
@@ -271,6 +311,7 @@ export function AppShell({ onLock }: AppShellProps) {
 
   async function confirmDelete() {
     if (!deleteTarget) return
+    const trigger = deleteTriggerRef.current
     try {
       if (deleteTarget.type === "category") {
         await vaultClient.deleteCategory(deleteTarget.id)
@@ -279,8 +320,10 @@ export function AppShell({ onLock }: AppShellProps) {
       } else {
         await vaultClient.deleteAccount(deleteTarget.id)
       }
+      deleteTriggerRef.current = null
       setDeleteTarget(null)
       await refresh()
+      restoreDialogFocus(trigger)
       toast.success("已移入回收站")
     } catch (error) {
       toast.error("删除失败", { description: errorMessage(error) })
@@ -399,13 +442,13 @@ export function AppShell({ onLock }: AppShellProps) {
               onSelectCategory={(id) => void selectCategory(id)}
               onSelectWebsite={(id) => void selectWebsite(id)}
               onSelectAccount={(id) => void selectAccount(id)}
-              onCreateCategory={() => setEditor({ kind: "category" })}
+              onCreateCategory={() => openEditor({ kind: "category" })}
               onEditCategory={() =>
-                category ? setEditor({ kind: "category", category }) : undefined
+                category ? openEditor({ kind: "category", category }) : undefined
               }
               onDeleteCategory={() =>
                 category
-                  ? setDeleteTarget({
+                  ? openDeleteDialog({
                       type: "category",
                       id: category.id,
                       name: category.name,
@@ -417,12 +460,12 @@ export function AppShell({ onLock }: AppShellProps) {
               }
               onCreateWebsite={() =>
                 selectedCategoryId
-                  ? setEditor({ kind: "website", categoryId: selectedCategoryId })
+                  ? openEditor({ kind: "website", categoryId: selectedCategoryId })
                   : undefined
               }
               onEditWebsite={() =>
                 website
-                  ? setEditor({
+                  ? openEditor({
                       kind: "website",
                       website,
                       categoryId: website.categoryId,
@@ -431,7 +474,7 @@ export function AppShell({ onLock }: AppShellProps) {
               }
               onDeleteWebsite={() =>
                 website
-                  ? setDeleteTarget({
+                  ? openDeleteDialog({
                       type: "website",
                       id: website.id,
                       name: website.name,
@@ -441,7 +484,7 @@ export function AppShell({ onLock }: AppShellProps) {
               }
               onCreateAccount={() =>
                 selectedWebsiteId
-                  ? setEditor({ kind: "account", websiteId: selectedWebsiteId })
+                  ? openEditor({ kind: "account", websiteId: selectedWebsiteId })
                   : undefined
               }
             />
@@ -470,7 +513,7 @@ export function AppShell({ onLock }: AppShellProps) {
               }}
               onEdit={() =>
                 account && selectedWebsiteId
-                  ? setEditor({
+                  ? openEditor({
                       kind: "account",
                       account,
                       websiteId: selectedWebsiteId,
@@ -479,7 +522,7 @@ export function AppShell({ onLock }: AppShellProps) {
               }
               onDelete={() =>
                 account
-                  ? setDeleteTarget({
+                  ? openDeleteDialog({
                       type: "account",
                       id: account.id,
                       name: account.displayName,
@@ -502,7 +545,7 @@ export function AppShell({ onLock }: AppShellProps) {
           }`}
           editor={editor}
           categories={categories}
-          onClose={() => setEditor(null)}
+          onClose={closeEditor}
           onSaveCategory={saveCategory}
           onSaveWebsite={saveWebsite}
           onSaveAccount={saveAccount}
@@ -511,7 +554,7 @@ export function AppShell({ onLock }: AppShellProps) {
       {deleteTarget ? (
         <DeleteConfirmDialog
           target={deleteTarget}
-          onClose={() => setDeleteTarget(null)}
+          onClose={closeDeleteDialog}
           onConfirm={confirmDelete}
         />
       ) : null}

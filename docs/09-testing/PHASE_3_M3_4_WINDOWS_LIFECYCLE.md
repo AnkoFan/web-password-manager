@@ -2,7 +2,7 @@
 
 > 日期：2026-07-31
 >
-> 状态：原生事件实现和自动注入已通过 / 真实系统操作待人工验收
+> 状态：原生事件、当前 Windows 人工生命周期与残留验收已通过
 
 ## 实现增量
 
@@ -54,6 +54,13 @@ Rust 测试覆盖：
 | CLP-002 | 复制后用其他内容替换 | 应用不清理用户的新内容 |
 | CLP-003 | 打开剪贴板历史 | 明确记录 Windows 可能保留历史副本的限制 |
 
+## 2026-08-01 当前 Windows 人工结果
+
+- `SES-001` 至 `SES-007` 全部通过：`Win+L`、睡眠/唤醒、切换到另一 Windows 用户再返回、`Alt+Tab`、强制结束后重启、详情卸载和重复事件均回到解锁页，没有恢复明文详情或自动解锁。
+- `CLP-001` 通过：5 秒设置下等待 7 秒，当前剪贴板被清理。
+- `CLP-002` 通过：复制虚构秘密后用 `M3 TEST ONLY USER REPLACEMENT` 替换，等待 7 秒后替换内容仍存在。
+- `CLP-003` 确认限制存在：`Win+V` 历史中仍可见虚构密码副本；测试后已由测试人员执行“全部清除”。应用不得宣称当前剪贴板清理会同步删除 Windows 历史或第三方工具副本。
+
 锁屏、用户切换和睡眠会中断当前自动化会话，必须由测试人员在场执行；不得自动填写 Windows 登录凭据。
 
 ## 缓存、临时文件与转储扫描
@@ -68,13 +75,8 @@ node .\scripts\scan-test-canaries.mjs `
 
 扫描器以流式方式匹配 UTF-8 和 UTF-16LE，只输出命中的文件路径，不输出秘密上下文。固定夹具的验证结果必须为 `passed: true`。完成后按测试环境清理策略删除虚构保险库、缓存和测试转储。
 
-2026-08-01 在当前 Windows 上使用隔离 identifier `io.github.webpasswordmanager.m3installtest` 启动 0.1.1 测试构建，等待 WebView2 初始化后强制结束进程。扫描其 `%LOCALAPPDATA%` 目录的 169 个文件，三个固定 TEST-ONLY 主密码/字段秘密/Token 标记均无命中，结果为 `passed: true`。随后通过隔离卸载器的显式 `/DELETEAPPDATA` 路径删除安装目录、注册项及该 identifier 的 Local/Roaming 数据；未扫描或清理正式 identifier。
+2026-08-01 在当前 Windows 上使用隔离 identifier `io.github.webpasswordmanager.m3installtest` 和实际虚构保险库执行人工生命周期测试。完成强制结束与重启后，扫描其 `%LOCALAPPDATA%` 目录的 295 个保险库/WebView2 文件，三个固定 TEST-ONLY 主密码/字段秘密/Token 标记均无命中，结果为 `passed: true`。系统注册的 Microsoft Edge WebView2 Runtime 版本为 `150.0.4078.105`。随后通过隔离卸载器的显式 `/DELETEAPPDATA` 路径删除安装目录、注册项及该 identifier 的 Local/Roaming 数据；未扫描或清理正式 identifier。
 
-## 未关闭
+对话框焦点修复后的纯键盘复测再次使用隔离身份和额外虚构账号数据。结束应用后容错读取其 291 个现存文件，虚构用户名、密码、分类、网站和显示名称标记均无命中；随后 `/DELETEAPPDATA` 卸载退出码为 0，安装目录、Local/Roaming 数据目录和 HKCU 卸载注册项均确认不存在。
 
-- 真实 Windows 锁屏、睡眠/唤醒和切换用户记录。
-- 实际 WebView2 版本、路径和扫描结果。
-- 剪贴板历史人工确认。
-- Windows Error Reporting 或本地转储的异常退出扫描。
-
-这些项目未完成人工签字前，M3.4 和发布检查清单保持未完成。
+当前用户的 `CrashDumps`、Windows Error Reporting `ReportArchive` 和 `ReportQueue` 中未发现名称关联 `web-password-manager` 或 `WebPasswordManager` 的转储/报告，因此本轮没有额外转储文件可扫描。该结论仅覆盖当前 Windows、当前运行时与本轮操作，不构成所有驱动、固件或第三方崩溃收集器的普遍保证。
