@@ -337,19 +337,23 @@
   }
 
   .vault-table th:nth-child(1) {
-    width: 29%;
+    width: 21%;
   }
 
   .vault-table th:nth-child(2) {
-    width: 22%;
+    width: 15%;
   }
 
   .vault-table th:nth-child(3) {
-    width: 27%;
+    width: 19%;
   }
 
   .vault-table th:nth-child(4) {
-    width: 22%;
+    width: 18%;
+  }
+
+  .vault-table th:nth-child(5) {
+    width: 27%;
   }
 
   .vault-table td {
@@ -370,6 +374,7 @@
 
   .vault-website-cell,
   .vault-account-cell,
+  .vault-identifier-cell,
   .vault-password-cell,
   .vault-row-actions,
   .vault-inline-actions {
@@ -395,6 +400,18 @@
 
   .vault-account-cell {
     @apply gap-2.5;
+  }
+
+  .vault-identifier-cell {
+    @apply justify-between gap-2;
+  }
+
+  .vault-identifier-value {
+    @apply min-w-0 truncate text-sm;
+  }
+
+  .vault-identifier-value.masked {
+    @apply tracking-[0.12em] text-muted-foreground;
   }
 
   .vault-row-icon {
@@ -1042,7 +1059,9 @@
     border-right: 1px solid var(--border);
   }
 
-  .vault-table td:nth-last-child(-n + 2) {
+  .vault-table td:last-child {
+    grid-column: 1 / -1;
+    border-right: 0;
     border-bottom: 0;
   }
 
@@ -1150,8 +1169,7 @@
   }
 
   .vault-table td,
-  .vault-table td:nth-child(odd),
-  .vault-table td:nth-last-child(-n + 2) {
+  .vault-table td:nth-child(odd) {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }

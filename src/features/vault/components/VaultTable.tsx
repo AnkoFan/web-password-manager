@@ -2,6 +2,7 @@ import {
   Copy,
   Eye,
   EyeOff,
+  ExternalLink,
   Globe2,
   Pencil,
   Plus,
@@ -34,8 +35,72 @@ type VaultTableProps = {
   onCreateAccount: (website: Website) => void
   onEditAccount: (website: Website, account: AccountDetail) => void
   onDeleteAccount: (account: AccountDetail) => void
+  onOpenWebsite: (website: Website) => Promise<void>
   onToggleReveal: (fieldId: string, label: string) => Promise<void>
   onCopyField: (fieldId: string, label: string) => Promise<void>
+}
+
+function AccountIdentifierCell({
+  account,
+  revealed,
+  onToggleReveal,
+  onCopyField,
+}: Pick<
+  VaultTableProps,
+  "revealed" | "onToggleReveal" | "onCopyField"
+> & { account: AccountDetail | null }) {
+  const accountField = account?.fields.find((field) => field.systemRole === "username")
+    ?? account?.fields.find((field) => field.systemRole === "email")
+
+  if (!accountField) {
+    return <span className="vault-cell-placeholder">未设置</span>
+  }
+
+  const visibleValue = accountField.isSensitive
+    ? revealed[accountField.id]
+    : accountField.value
+  const shownValue = visibleValue
+    ?? (accountField.isSensitive ? "••••••••" : "未设置")
+
+  return (
+    <div className="vault-identifier-cell">
+      <span className={cn("vault-identifier-value", accountField.isSensitive && !visibleValue && "masked")}>
+        {shownValue}
+      </span>
+      <div className="vault-inline-actions">
+        {accountField.isSensitive ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={visibleValue ? "隐藏账号" : "显示账号"}
+                onClick={() => void onToggleReveal(accountField.id, accountField.label)}
+              >
+                {visibleValue ? <EyeOff /> : <Eye />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{visibleValue ? "隐藏账号" : "临时显示账号"}</TooltipContent>
+          </Tooltip>
+        ) : null}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="复制账号"
+              onClick={() => void onCopyField(accountField.id, accountField.label)}
+            >
+              <Copy />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>复制账号</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  )
 }
 
 function PasswordCell({
@@ -107,6 +172,7 @@ export function VaultTable({
   onCreateAccount,
   onEditAccount,
   onDeleteAccount,
+  onOpenWebsite,
   onToggleReveal,
   onCopyField,
 }: VaultTableProps) {
@@ -150,6 +216,7 @@ export function VaultTable({
             <thead>
               <tr>
                 <th scope="col">网站</th>
+                <th scope="col">名称</th>
                 <th scope="col">账号</th>
                 <th scope="col">密码</th>
                 <th scope="col" className="vault-actions-heading">操作</th>
@@ -202,7 +269,7 @@ export function VaultTable({
                         <span className="vault-same-site">同上</span>
                       )}
                     </td>
-                    <td data-label="账号">
+                    <td data-label="名称">
                       {account ? (
                         <div className="vault-account-cell">
                           <span className="vault-row-icon vault-row-icon-muted">
@@ -214,6 +281,14 @@ export function VaultTable({
                         <span className="vault-cell-placeholder">尚未添加账号</span>
                       )}
                     </td>
+                    <td data-label="账号">
+                      <AccountIdentifierCell
+                        account={account}
+                        revealed={revealed}
+                        onToggleReveal={onToggleReveal}
+                        onCopyField={onCopyField}
+                      />
+                    </td>
                     <td data-label="密码">
                       <PasswordCell
                         account={account}
@@ -224,6 +299,16 @@ export function VaultTable({
                     </td>
                     <td data-label="操作">
                       <div className="vault-row-actions">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!website.primaryUrl}
+                          onClick={() => void onOpenWebsite(website)}
+                        >
+                          <ExternalLink data-icon="inline-start" />
+                          打开网址
+                        </Button>
                         {account ? (
                           <>
                             <Button

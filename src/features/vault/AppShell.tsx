@@ -426,6 +426,13 @@ export function AppShell() {
                 name: selectedAccount.displayName,
               })
             }
+            onOpenWebsite={async (selectedWebsite) => {
+              try {
+                await vaultClient.openWebsite(selectedWebsite.id)
+              } catch (error) {
+                toast.error("无法打开网址", { description: errorMessage(error) })
+              }
+            }}
             onCopyField={copyField}
             onToggleReveal={toggleReveal}
           />
