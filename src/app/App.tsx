@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Button } from "@/components/ui/button"
 import { AppShell } from "@/features/vault/AppShell"
 import { SetupScreen } from "@/features/vault/SetupScreen"
 import { UnlockScreen } from "@/features/vault/UnlockScreen"
@@ -16,23 +17,27 @@ export function App() {
   const [startupError, setStartupError] = useState("")
   const [lockNotice, setLockNotice] = useState("")
 
+  const checkStatus = useCallback(async (isActive: () => boolean = () => true) => {
+    setStartupError("")
+    setSession("loading")
+    try {
+      const { exists } = await vaultClient.status()
+      if (isActive()) setSession(exists ? "locked" : "setup")
+    } catch (error) {
+      if (isActive()) {
+        setStartupError(error instanceof Error ? error.message : String(error))
+        setSession("recovery")
+      }
+    }
+  }, [])
+
   useEffect(() => {
     let active = true
-    void vaultClient
-      .status()
-      .then(({ exists }) => {
-        if (active) setSession(exists ? "locked" : "setup")
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setStartupError(error instanceof Error ? error.message : String(error))
-          setSession("recovery")
-        }
-      })
+    void checkStatus(() => active)
     return () => {
       active = false
     }
-  }, [])
+  }, [checkStatus])
 
   useEffect(() => {
     let active = true
@@ -93,6 +98,10 @@ export function App() {
             <h1>保险库需要恢复</h1>
             <p>{startupError || "无法确认本地保险库状态。"}</p>
             <p>为避免覆盖现有数据，应用已停止创建和编辑操作。</p>
+            <p>请先保留应用数据目录的副本，再检查文件权限或使用已验证的备份恢复；不要删除原文件。</p>
+            <Button type="button" onClick={() => void checkStatus()}>
+              重新检查保险库
+            </Button>
           </section>
         </main>
       ) : session === "setup" ? (

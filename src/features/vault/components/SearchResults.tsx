@@ -40,7 +40,7 @@ export function SearchResults({ query, results, onSelect }: SearchResultsProps) 
           <div className="search-empty">
             <Search aria-hidden="true" />
             <strong>没有匹配结果</strong>
-            <p>搜索不会匹配密码、Token 或其他敏感字段。</p>
+            <p>请尝试网站、账号、用户名或邮箱；搜索不会匹配密码、Token 或其他敏感字段。</p>
           </div>
         ) : null}
       </div>
