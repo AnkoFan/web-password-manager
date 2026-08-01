@@ -886,18 +886,14 @@ fn finish_root_deletion(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        repositories::CategoryRepository,
-        security::derive_kek,
-        storage::{create_schema, open_encrypted_database},
-        tests::test_header,
-    };
+    use crate::{repositories::CategoryRepository, storage::create_schema};
 
     fn test_connection() -> (tempfile::TempDir, Connection) {
         let temp = tempfile::tempdir().unwrap();
-        let key = derive_kek("a-long-test-password", &test_header()).unwrap();
-        let mut connection =
-            open_encrypted_database(&temp.path().join("vault.db"), key.as_slice()).unwrap();
+        let mut connection = Connection::open(temp.path().join("password-manager.db")).unwrap();
+        connection
+            .execute_batch("PRAGMA foreign_keys = ON;")
+            .unwrap();
         create_schema(&mut connection).unwrap();
         (temp, connection)
     }
@@ -1069,9 +1065,8 @@ mod tests {
         };
         drop(connection);
 
-        let key = derive_kek("a-long-test-password", &test_header()).unwrap();
-        let mut reopened =
-            open_encrypted_database(&temp.path().join("vault.db"), key.as_slice()).unwrap();
+        let mut reopened = Connection::open(temp.path().join("password-manager.db")).unwrap();
+        reopened.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
         let repository = VaultRepository::new(&mut reopened);
         let websites = repository.list_websites(Some(category.id)).unwrap();
         let accounts = repository.list_accounts(website_id).unwrap();

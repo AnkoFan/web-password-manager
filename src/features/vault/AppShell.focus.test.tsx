@@ -11,7 +11,6 @@ vi.mock("@/services/vault-client", () => ({
     ]),
     listWebsites: vi.fn(async () => []),
     listTrash: vi.fn(async () => []),
-    recordActivity: vi.fn(async () => undefined),
   },
 }))
 
@@ -19,7 +18,7 @@ afterEach(() => cleanup())
 
 describe("AppShell dialog focus restoration", () => {
   it("returns focus to the editor trigger after Escape", async () => {
-    render(<AppShell onLock={vi.fn(async () => undefined)} />)
+    render(<AppShell />)
     const trigger = await screen.findByRole("button", { name: "新建分类" })
 
     trigger.focus()
@@ -33,7 +32,7 @@ describe("AppShell dialog focus restoration", () => {
   })
 
   it("returns focus to the delete trigger after Escape", async () => {
-    render(<AppShell onLock={vi.fn(async () => undefined)} />)
+    render(<AppShell />)
     const trigger = await screen.findByRole("button", { name: "删除" })
 
     trigger.focus()

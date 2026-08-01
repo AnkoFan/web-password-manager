@@ -1,51 +1,25 @@
-use std::{
-    sync::Mutex,
-    time::{Duration, Instant},
-};
+use std::sync::Mutex;
 
 use rusqlite::Connection;
-use tauri::{Emitter, Manager, WindowEvent};
+use tauri::Manager;
 
 mod commands;
 mod domain;
 mod repositories;
-mod security;
-mod security_controls;
+mod settings;
 mod storage;
-#[cfg(windows)]
-mod windows_lifecycle;
 
 struct VaultSession {
     connection: Option<Connection>,
-    last_activity: Option<Instant>,
-    settings: security_controls::SecuritySettings,
+    settings: settings::AppSettings,
 }
 
 impl Default for VaultSession {
     fn default() -> Self {
         Self {
             connection: None,
-            last_activity: None,
-            settings: security_controls::SecuritySettings::default(),
+            settings: settings::AppSettings::default(),
         }
-    }
-}
-
-impl VaultSession {
-    fn mark_unlocked(&mut self, connection: Connection) {
-        self.connection = Some(connection);
-        self.last_activity = Some(Instant::now());
-    }
-
-    fn touch(&mut self) {
-        if self.connection.is_some() {
-            self.last_activity = Some(Instant::now());
-        }
-    }
-
-    fn lock(&mut self) -> bool {
-        self.last_activity = None;
-        self.connection.take().is_some()
     }
 }
 
@@ -58,42 +32,10 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let settings = security_controls::load_settings(app.handle()).unwrap_or_default();
+            let settings = settings::load_settings(app.handle()).unwrap_or_default();
             if let Ok(mut session) = app.state::<VaultState>().0.lock() {
                 session.settings = settings;
             }
-            let monitor_app = app.handle().clone();
-            #[cfg(windows)]
-            let windows_events = windows_lifecycle::subscribe().map_err(std::io::Error::other)?;
-            std::thread::spawn(move || loop {
-                std::thread::sleep(Duration::from_secs(1));
-                #[cfg(windows)]
-                let native_reason = windows_events.try_iter().last();
-                #[cfg(not(windows))]
-                let native_reason: Option<&'static str> = None;
-                let locked = {
-                    let state = monitor_app.state::<VaultState>();
-                    let Ok(mut session) = state.0.lock() else {
-                        continue;
-                    };
-                    if native_reason.is_some()
-                        || (session.connection.is_some()
-                            && security_controls::idle_timeout_reached(
-                                session.last_activity,
-                                Instant::now(),
-                                &session.settings,
-                            ))
-                    {
-                        session.lock()
-                    } else {
-                        false
-                    }
-                };
-                if locked {
-                    let _ =
-                        monitor_app.emit("vault-locked", native_reason.unwrap_or("idle_timeout"));
-                }
-            });
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -103,30 +45,8 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if !matches!(event, WindowEvent::Focused(false)) {
-                return;
-            }
-            let locked = {
-                let state = window.state::<VaultState>();
-                let Ok(mut session) = state.0.lock() else {
-                    return;
-                };
-                if session.settings.lock_on_focus_loss {
-                    session.lock()
-                } else {
-                    false
-                }
-            };
-            if locked {
-                let _ = window.app_handle().emit("vault-locked", "focus_lost");
-            }
-        })
         .invoke_handler(tauri::generate_handler![
             commands::vault_status,
-            commands::create_vault,
-            commands::unlock_vault,
-            commands::lock_vault,
             commands::list_categories,
             commands::create_category,
             commands::rename_category,
@@ -145,17 +65,13 @@ pub fn run() {
             commands::copy_field,
             commands::copy_website_url,
             commands::get_website_url,
-            commands::record_activity,
-            commands::get_security_settings,
-            commands::update_security_settings,
+            commands::get_app_settings,
+            commands::update_app_settings,
             commands::list_backups,
             commands::create_backup,
             commands::verify_backup,
             commands::restore_backup
         ])
         .run(tauri::generate_context!())
-        .expect("error while running local vault");
+        .expect("error while running local password manager");
 }
-
-#[cfg(test)]
-mod tests;

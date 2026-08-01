@@ -4,10 +4,10 @@ import {
   type AccountDraft,
   type AccountField,
   type AccountSummary,
+  type AppSettings,
   type BackupInfo,
   type Category,
   type SearchResult,
-  type SecuritySettings,
   type TrashItem,
   type Website,
   type WebsiteDraft,
@@ -21,21 +21,16 @@ type StoredAccount = Omit<AccountSummary, "summary"> & {
 type StoredWebsite = Website & { deletedGroupId?: string }
 type StoredCategory = Category & { deletedGroupId?: string }
 
-let mockPassword: string | null = null
-let mockUnlocked = false
 let categories: StoredCategory[] = []
 let websites: StoredWebsite[] = []
 let accounts: StoredAccount[] = []
 let trash: TrashItem[] = []
-let settings: SecuritySettings = {
-  autoLockMinutes: 5,
+let settings: AppSettings = {
   clipboardClearSeconds: 30,
-  lockOnFocusLoss: true,
 }
 
 type PrototypeBackup = {
   info: BackupInfo
-  password: string
   categories: StoredCategory[]
   websites: StoredWebsite[]
   accounts: StoredAccount[]
@@ -50,12 +45,6 @@ function id() {
 
 function key(value: string) {
   return value.trim().normalize("NFKC").toLocaleLowerCase()
-}
-
-function requireUnlocked() {
-  if (!mockUnlocked) {
-    throw new VaultClientError("vault_locked", "保险库已锁定")
-  }
 }
 
 function requiredName(value: string, max: number) {
@@ -97,39 +86,14 @@ function accountDetail(account: StoredAccount): AccountDetail {
 }
 
 export function status() {
-  return { exists: Boolean(mockPassword) }
-}
-
-export function create(password: string) {
-  if (password.length < 12) {
-    throw new VaultClientError("invalid_master_password", "主密码至少需要 12 个字符")
-  }
-  mockPassword = password
-  mockUnlocked = true
-  categories = []
-  websites = []
-  accounts = []
-  trash = []
-}
-
-export function unlock(password: string) {
-  if (!mockPassword || password !== mockPassword) {
-    throw new VaultClientError("vault_unlock_failed", "主密码不正确")
-  }
-  mockUnlocked = true
-}
-
-export function lock() {
-  mockUnlocked = false
+  return { exists: true }
 }
 
 export function listCategories(): Category[] {
-  requireUnlocked()
   return categories.filter((category) => !category.deletedGroupId)
 }
 
 export function createCategory(name: string): Category {
-  requireUnlocked()
   const display = requiredName(name, 100)
   if (categories.some((category) => !category.deletedGroupId && key(category.name) === key(display))) {
     throw new VaultClientError("category_already_exists", "该分类名称已经存在")
@@ -140,7 +104,6 @@ export function createCategory(name: string): Category {
 }
 
 export function renameCategory(categoryId: string, name: string) {
-  requireUnlocked()
   const category = activeCategory(categoryId)
   if (!category) throw new VaultClientError("category_not_found", "分类不存在")
   const display = requiredName(name, 100)
@@ -156,7 +119,6 @@ export function renameCategory(categoryId: string, name: string) {
 }
 
 export function deleteCategory(categoryId: string) {
-  requireUnlocked()
   const category = activeCategory(categoryId)
   if (!category) throw new VaultClientError("category_not_found", "分类不存在")
   const groupId = id()
@@ -180,7 +142,6 @@ export function deleteCategory(categoryId: string) {
 }
 
 export function listWebsites(categoryId?: string): Website[] {
-  requireUnlocked()
   return websites.filter(
     (website) =>
       !website.deletedGroupId &&
@@ -190,7 +151,6 @@ export function listWebsites(categoryId?: string): Website[] {
 }
 
 export function saveWebsite(draft: WebsiteDraft): Website {
-  requireUnlocked()
   if (!activeCategory(draft.categoryId)) {
     throw new VaultClientError("category_not_found", "分类不存在")
   }
@@ -215,7 +175,6 @@ export function saveWebsite(draft: WebsiteDraft): Website {
 }
 
 export function deleteWebsite(websiteId: string) {
-  requireUnlocked()
   const website = activeWebsite(websiteId)
   if (!website) throw new VaultClientError("website_not_found", "网站不存在")
   const groupId = id()
@@ -234,7 +193,6 @@ export function deleteWebsite(websiteId: string) {
 }
 
 export function listAccounts(websiteId: string): AccountSummary[] {
-  requireUnlocked()
   if (!activeWebsite(websiteId)) return []
   return accounts
     .filter((account) => account.websiteId === websiteId && !account.deletedGroupId)
@@ -253,14 +211,12 @@ export function listAccounts(websiteId: string): AccountSummary[] {
 }
 
 export function getAccount(accountId: string): AccountDetail {
-  requireUnlocked()
   const account = activeAccount(accountId)
   if (!account) throw new VaultClientError("account_not_found", "账号不存在")
   return accountDetail(account)
 }
 
 export function saveAccount(draft: AccountDraft): AccountDetail {
-  requireUnlocked()
   if (!activeWebsite(draft.websiteId)) {
     throw new VaultClientError("website_not_found", "网站不存在")
   }
@@ -332,7 +288,6 @@ export function saveAccount(draft: AccountDraft): AccountDetail {
 }
 
 export function deleteAccount(accountId: string) {
-  requireUnlocked()
   const account = activeAccount(accountId)
   if (!account) throw new VaultClientError("account_not_found", "账号不存在")
   const groupId = id()
@@ -346,7 +301,6 @@ export function deleteAccount(accountId: string) {
 }
 
 export function search(query: string): SearchResult[] {
-  requireUnlocked()
   const queryKey = key(query)
   if (!queryKey) return []
   const results: SearchResult[] = []
@@ -389,12 +343,10 @@ export function search(query: string): SearchResult[] {
 }
 
 export function listTrash(): TrashItem[] {
-  requireUnlocked()
   return trash
 }
 
 export function restore(groupId: string) {
-  requireUnlocked()
   const item = trash.find((entry) => entry.groupId === groupId)
   if (!item) throw new VaultClientError("deletion_group_not_found", "删除记录不存在")
   for (const category of categories) {
@@ -410,7 +362,6 @@ export function restore(groupId: string) {
 }
 
 export function revealField(fieldId: string) {
-  requireUnlocked()
   for (const account of accounts.filter((entry) => activeAccount(entry.id))) {
     const field = account.fields.find((entry) => entry.id === fieldId)
     if (field) return field.value
@@ -423,7 +374,6 @@ export async function copyField(fieldId: string) {
 }
 
 export function getWebsiteUrl(websiteId: string) {
-  requireUnlocked()
   const website = activeWebsite(websiteId)
   if (!website) throw new VaultClientError("website_not_found", "网站不存在")
   if (!website.primaryUrl) throw new VaultClientError("invalid_input", "网站没有可打开的网址")
@@ -451,27 +401,20 @@ async function writeClipboard(value: string) {
   }, settings.clipboardClearSeconds * 1000)
 }
 
-export function recordActivity() {
-  requireUnlocked()
-}
-
-export function getSecuritySettings() {
+export function getAppSettings() {
   return { ...settings }
 }
 
-export function updateSecuritySettings(next: SecuritySettings) {
+export function updateAppSettings(next: AppSettings) {
   if (
-    !Number.isInteger(next.autoLockMinutes) ||
-    next.autoLockMinutes < 1 ||
-    next.autoLockMinutes > 60 ||
     !Number.isInteger(next.clipboardClearSeconds) ||
     next.clipboardClearSeconds < 5 ||
     next.clipboardClearSeconds > 300
   ) {
-    throw new VaultClientError("invalid_security_settings", "安全设置超出允许范围")
+    throw new VaultClientError("invalid_app_settings", "应用设置超出允许范围")
   }
   settings = { ...next }
-  return getSecuritySettings()
+  return getAppSettings()
 }
 
 export function listBackups(): BackupInfo[] {
@@ -479,44 +422,33 @@ export function listBackups(): BackupInfo[] {
 }
 
 export function createBackup(): BackupInfo {
-  requireUnlocked()
   const info = { id: id(), createdAt: Date.now(), schemaVersion: 2 }
   backups.unshift({
     info,
-    password: mockPassword ?? "",
     categories: structuredClone(categories),
     websites: structuredClone(websites),
     accounts: structuredClone(accounts),
     trash: structuredClone(trash),
   })
-  mockUnlocked = false
   return info
 }
 
-export function verifyBackup(backupId: string, password: string): BackupInfo {
+export function verifyBackup(backupId: string): BackupInfo {
   const backup = backups.find((entry) => entry.info.id === backupId)
-  if (!backup || backup.password !== password) {
-    throw new VaultClientError(
-      "backup_verify_failed",
-      "无法验证备份，主密码不正确或备份已损坏",
-    )
+  if (!backup) {
+    throw new VaultClientError("backup_verify_failed", "无法验证备份，备份已损坏")
   }
   return { ...backup.info }
 }
 
-export function restoreBackup(backupId: string, password: string) {
-  if (mockUnlocked) {
-    throw new VaultClientError("backup_restore_failed", "恢复前必须先锁定保险库")
-  }
+export function restoreBackup(backupId: string) {
   const backup = backups.find((entry) => entry.info.id === backupId)
-  verifyBackup(backupId, password)
+  verifyBackup(backupId)
   if (!backup) return
   categories = structuredClone(backup.categories)
   websites = structuredClone(backup.websites)
   accounts = structuredClone(backup.accounts)
   trash = structuredClone(backup.trash)
-  mockPassword = backup.password
-  mockUnlocked = true
 }
 
 function validateUrl(value: string) {

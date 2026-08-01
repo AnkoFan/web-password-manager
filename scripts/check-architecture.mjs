@@ -14,9 +14,7 @@ function sourceFiles(directory, extensions) {
 
 function reject(path, pattern, message) {
   const source = readFileSync(path, "utf8")
-  if (pattern.test(source)) {
-    violations.push(`${relative(root, path)}: ${message}`)
-  }
+  if (pattern.test(source)) violations.push(`${relative(root, path)}: ${message}`)
 }
 
 for (const path of sourceFiles(join(root, "src", "components", "ui"), new Set([".ts", ".tsx"]))) {
@@ -27,11 +25,6 @@ for (const path of sourceFiles(join(root, "src", "services"), new Set([".ts", ".
   reject(path, /from\s+["']@\/(?:features|app)\//, "前端服务不能依赖页面或应用层")
 }
 
-reject(
-  join(root, "src-tauri", "src", "security.rs"),
-  /\b(?:tauri|rusqlite)::/,
-  "安全模块不能依赖界面框架或数据库",
-)
 reject(
   join(root, "src-tauri", "src", "storage.rs"),
   /#\[tauri::command\]|\bState\s*</,

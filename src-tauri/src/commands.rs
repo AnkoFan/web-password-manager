@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use zeroize::Zeroize;
 
@@ -11,11 +11,11 @@ use crate::{
         TrashItem, Website,
     },
     repositories::{CategoryRepository, RepositoryError, VaultRepository},
-    security_controls::{save_settings, SecuritySettings},
+    settings::{save_settings, AppSettings},
     storage::{
-        create_backup as create_backup_files, create_vault_files, list_backups as load_backups,
-        recover_interrupted_header_replacement, restore_backup as restore_backup_files,
-        unlock_vault_files, vault_paths, verify_backup as verify_backup_files, BackupInfo,
+        create_backup as create_backup_files, list_backups as load_backups,
+        open_or_create_database, restore_backup as restore_backup_files, vault_paths,
+        verify_backup as verify_backup_files, BackupInfo,
     },
 };
 
@@ -44,21 +44,17 @@ impl CommandError {
 fn require_connection<'a>(
     state: &'a State<'_, VaultState>,
 ) -> Result<std::sync::MutexGuard<'a, VaultSession>, CommandError> {
-    let mut session = state
+    let session = state
         .0
         .lock()
-        .map_err(|_| CommandError::new("session_unavailable", "保险库状态不可用"))?;
-    ensure_unlocked(&session)?;
-    session.touch();
+        .map_err(|_| CommandError::new("session_unavailable", "本地数据库状态不可用"))?;
+    if session.connection.is_none() {
+        return Err(CommandError::new(
+            "storage_unavailable",
+            "本地数据库尚未初始化",
+        ));
+    }
     Ok(session)
-}
-
-fn ensure_unlocked(session: &VaultSession) -> Result<(), CommandError> {
-    session
-        .connection
-        .as_ref()
-        .map(|_| ())
-        .ok_or_else(|| CommandError::new("vault_locked", "保险库已锁定"))
 }
 
 fn repository_error(error: RepositoryError) -> CommandError {
@@ -85,106 +81,21 @@ fn parse_id(value: &str) -> Result<EntityId, CommandError> {
 }
 
 #[tauri::command]
-pub(crate) fn vault_status(app: AppHandle) -> Result<VaultStatus, CommandError> {
+pub(crate) fn vault_status(
+    app: AppHandle,
+    state: State<'_, VaultState>,
+) -> Result<VaultStatus, CommandError> {
     let paths =
         vault_paths(&app).map_err(|message| CommandError::new("storage_unavailable", message))?;
-    recover_interrupted_header_replacement(&paths)
-        .map_err(|message| CommandError::new("recovery_required", message))?;
-    let header_exists = paths.header.exists();
-    let database_exists = paths.database.exists();
-    if header_exists != database_exists {
-        return Err(CommandError::new(
-            "recovery_required",
-            "检测到不完整的保险库，需要进入恢复流程",
-        ));
-    }
-    Ok(VaultStatus {
-        exists: header_exists && database_exists,
-    })
-}
-
-fn create_vault_inner(
-    app: &AppHandle,
-    password: &str,
-    state: &State<'_, VaultState>,
-) -> Result<(), String> {
-    if password.chars().count() < 12 {
-        return Err("主密码至少需要 12 个字符".into());
-    }
-
-    let paths = vault_paths(app)?;
-    let connection = create_vault_files(&paths, password)?;
-    let mut session = state.0.lock().map_err(|_| "保险库状态不可用")?;
-    session.mark_unlocked(connection);
-    Ok(())
-}
-
-#[tauri::command]
-pub(crate) fn create_vault(
-    app: AppHandle,
-    mut password: String,
-    state: State<'_, VaultState>,
-) -> Result<(), CommandError> {
-    let result = create_vault_inner(&app, &password, &state);
-    password.zeroize();
-    result.map_err(|message| {
-        let code = if message.contains("至少需要") {
-            "invalid_master_password"
-        } else if message.contains("已经存在") {
-            "vault_already_exists"
-        } else {
-            "vault_create_failed"
-        };
-        CommandError::new(code, message)
-    })
-}
-
-fn unlock_vault_inner(
-    app: &AppHandle,
-    password: &str,
-    state: &State<'_, VaultState>,
-) -> Result<(), String> {
-    let paths = vault_paths(app)?;
-    let connection = unlock_vault_files(&paths, password)?;
-    let mut session = state.0.lock().map_err(|_| "保险库状态不可用")?;
-    session.mark_unlocked(connection);
-    Ok(())
-}
-
-#[tauri::command]
-pub(crate) fn unlock_vault(
-    app: AppHandle,
-    mut password: String,
-    state: State<'_, VaultState>,
-) -> Result<(), CommandError> {
-    let result = unlock_vault_inner(&app, &password, &state);
-    password.zeroize();
-    result.map_err(|message| {
-        let code = if message.contains("更新版本") {
-            "vault_version_too_new"
-        } else if message.contains("需要迁移") {
-            "vault_migration_required"
-        } else if message.contains("无法读取") || message.contains("无法打开") {
-            "storage_unavailable"
-        } else {
-            "vault_unlock_failed"
-        };
-        CommandError::new(code, message)
-    })
-}
-
-#[tauri::command]
-pub(crate) fn lock_vault(app: AppHandle, state: State<'_, VaultState>) -> Result<(), CommandError> {
     let mut session = state
         .0
         .lock()
-        .map_err(|_| CommandError::new("session_unavailable", "保险库状态不可用"))?;
-    let locked = session.lock();
-    drop(session);
-    if locked {
-        let _ = app.emit("vault-locked", "manual");
-    }
-    Ok(())
+        .map_err(|_| CommandError::new("session_unavailable", "本地数据库状态不可用"))?;
+    session.connection = Some(
+        open_or_create_database(&paths)
+            .map_err(|message| CommandError::new("storage_unavailable", message))?,
+    );
+    Ok(VaultStatus { exists: true })
 }
 
 #[derive(Serialize)]
@@ -669,20 +580,7 @@ pub(crate) fn get_website_url(
 }
 
 #[tauri::command]
-pub(crate) fn record_activity(state: State<'_, VaultState>) -> Result<(), CommandError> {
-    let mut session = state
-        .0
-        .lock()
-        .map_err(|_| CommandError::new("session_unavailable", "保险库状态不可用"))?;
-    ensure_unlocked(&session)?;
-    session.touch();
-    Ok(())
-}
-
-#[tauri::command]
-pub(crate) fn get_security_settings(
-    state: State<'_, VaultState>,
-) -> Result<SecuritySettings, CommandError> {
+pub(crate) fn get_app_settings(state: State<'_, VaultState>) -> Result<AppSettings, CommandError> {
     state
         .0
         .lock()
@@ -691,11 +589,11 @@ pub(crate) fn get_security_settings(
 }
 
 #[tauri::command]
-pub(crate) fn update_security_settings(
+pub(crate) fn update_app_settings(
     app: AppHandle,
-    settings: SecuritySettings,
+    settings: AppSettings,
     state: State<'_, VaultState>,
-) -> Result<SecuritySettings, CommandError> {
+) -> Result<AppSettings, CommandError> {
     settings
         .validate()
         .map_err(|message| CommandError::new("invalid_security_settings", message))?;
@@ -704,9 +602,8 @@ pub(crate) fn update_security_settings(
     let mut session = state
         .0
         .lock()
-        .map_err(|_| CommandError::new("session_unavailable", "保险库状态不可用"))?;
+        .map_err(|_| CommandError::new("session_unavailable", "应用设置状态不可用"))?;
     session.settings = settings.clone();
-    session.touch();
     Ok(settings)
 }
 
@@ -742,69 +639,51 @@ pub(crate) fn create_backup(
     app: AppHandle,
     state: State<'_, VaultState>,
 ) -> Result<BackupView, CommandError> {
-    let mut session = state
-        .0
-        .lock()
-        .map_err(|_| CommandError::new("session_unavailable", "保险库状态不可用"))?;
-    ensure_unlocked(&session)?;
-    session.lock();
     let paths =
         vault_paths(&app).map_err(|message| CommandError::new("storage_unavailable", message))?;
-    let result = create_backup_files(&paths)
+    let session = require_connection(&state)?;
+    create_backup_files(&paths, session.connection.as_ref().expect("checked above"))
         .map(BackupView::from)
-        .map_err(|_| CommandError::new("backup_create_failed", "无法创建保险库备份"));
-    drop(session);
-    let _ = app.emit(
-        "vault-locked",
-        if result.is_ok() {
-            "backup_created"
-        } else {
-            "backup_failed"
-        },
-    );
-    result
+        .map_err(|_| CommandError::new("backup_create_failed", "无法创建本地数据库备份"))
 }
 
 #[tauri::command]
-pub(crate) fn verify_backup(
-    app: AppHandle,
-    backup_id: String,
-    mut password: String,
-) -> Result<BackupView, CommandError> {
-    let result = vault_paths(&app)
-        .and_then(|paths| verify_backup_files(&paths, &backup_id, &password))
-        .map(BackupView::from);
-    password.zeroize();
-    result.map_err(|_| {
-        CommandError::new(
-            "backup_verify_failed",
-            "无法验证备份，主密码不正确或备份已损坏",
-        )
-    })
+pub(crate) fn verify_backup(app: AppHandle, backup_id: String) -> Result<BackupView, CommandError> {
+    vault_paths(&app)
+        .and_then(|paths| verify_backup_files(&paths, &backup_id))
+        .map(BackupView::from)
+        .map_err(|_| CommandError::new("backup_verify_failed", "无法验证备份，备份已损坏"))
 }
 
 #[tauri::command]
 pub(crate) fn restore_backup(
     app: AppHandle,
     backup_id: String,
-    mut password: String,
     state: State<'_, VaultState>,
 ) -> Result<(), CommandError> {
     let result: Result<(), String> = (|| {
         let paths = vault_paths(&app)?;
-        let mut session = state.0.lock().map_err(|_| "保险库状态不可用")?;
-        if session.connection.is_some() {
-            return Err("恢复前必须先锁定保险库".into());
+        let mut session = state.0.lock().map_err(|_| "本地数据库状态不可用")?;
+        let current = session
+            .connection
+            .take()
+            .ok_or_else(|| "本地数据库尚未初始化".to_string())?;
+        drop(current);
+        match restore_backup_files(&paths, &backup_id) {
+            Ok(connection) => {
+                session.connection = Some(connection);
+                Ok(())
+            }
+            Err(error) => {
+                session.connection = open_or_create_database(&paths).ok();
+                Err(error)
+            }
         }
-        let connection = restore_backup_files(&paths, &backup_id, &password)?;
-        session.mark_unlocked(connection);
-        Ok(())
     })();
-    password.zeroize();
     result.map_err(|_| {
         CommandError::new(
             "backup_restore_failed",
-            "恢复失败，当前保险库未被备份内容覆盖",
+            "恢复失败，当前本地数据库未被备份内容覆盖",
         )
     })
 }
@@ -831,12 +710,6 @@ mod tests {
             parse_id("not-a-uuid").unwrap_err().code,
             "invalid_entity_id"
         );
-    }
-
-    #[test]
-    fn business_commands_share_a_locked_session_guard() {
-        let session = VaultSession::default();
-        assert_eq!(ensure_unlocked(&session).unwrap_err().code, "vault_locked");
     }
 
     #[test]

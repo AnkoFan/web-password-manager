@@ -81,10 +81,8 @@ export type TrashItem = {
   deletedAt: number
 }
 
-export type SecuritySettings = {
-  autoLockMinutes: number
+export type AppSettings = {
   clipboardClearSeconds: number
-  lockOnFocusLoss: boolean
 }
 
 export type BackupInfo = {

@@ -152,91 +152,12 @@
     @apply size-5;
   }
 
-  .auth-shell {
-    @apply grid min-h-screen grid-cols-[minmax(340px,0.9fr)_minmax(440px,1.1fr)] bg-background;
-  }
-
-  .auth-intro {
-    @apply flex flex-col justify-center border-r bg-sidebar px-[clamp(3rem,7vw,7rem)] py-16;
-  }
-
   .eyebrow {
     @apply mt-7 text-sm font-semibold tracking-[0.16em] text-primary uppercase;
   }
 
-  .auth-intro h1 {
-    @apply mt-3 max-w-xl text-4xl leading-[1.18] font-semibold tracking-tight;
-  }
-
-  .auth-lead {
-    @apply mt-5 max-w-lg text-base leading-7 text-muted-foreground;
-  }
-
-  .security-points {
-    @apply mt-10 flex flex-col gap-4 text-sm text-muted-foreground;
-  }
-
-  .security-points p {
-    @apply flex items-center gap-3;
-  }
-
-  .security-points svg {
-    @apply size-5 text-primary;
-  }
-
-  .auth-card {
-    @apply m-auto w-[min(470px,calc(100%-4rem))] shadow-sm;
-  }
-
-  .auth-card [data-slot="card-header"],
-  .unlock-card [data-slot="card-header"] {
-    @apply gap-2;
-  }
-
-  .auth-card [data-slot="card-content"],
-  .unlock-card [data-slot="card-content"] {
-    @apply py-2;
-  }
-
-  .auth-card [data-slot="card-footer"],
-  .unlock-card [data-slot="card-footer"] {
-    @apply flex gap-3 pt-6;
-  }
-
-  .password-control {
-    @apply relative flex items-center;
-  }
-
-  .password-control input {
-    @apply pr-11;
-  }
-
-  .password-control button {
-    @apply absolute right-1;
-  }
-
-  .unlock-shell {
+  .startup-shell {
     @apply flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_50%_42%,var(--color-card),var(--color-background)_62%)];
-  }
-
-  .unlock-card {
-    @apply w-[430px] shadow-sm;
-  }
-
-  .unlock-layout {
-    @apply flex items-start gap-6;
-  }
-
-  .restore-card {
-    @apply w-[430px] shadow-sm;
-  }
-
-  .restore-card [data-slot="card-header"] {
-    @apply gap-2;
-  }
-
-  .lock-notice {
-    @apply rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground;
   }
 
   .recovery-state {
@@ -758,51 +679,13 @@
     min-height: 100vh;
   }
 
-  .auth-shell {
-    min-height: 100vh;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .auth-intro {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-    padding: 1.5rem;
-  }
-
-  .auth-intro h1 {
-    margin-top: 0.5rem;
-    font-size: 1.75rem;
-  }
-
-  .auth-lead {
-    margin-top: 0.75rem;
-  }
-
-  .security-points {
-    margin-top: 1rem;
-    gap: 0.5rem;
-  }
-
-  .auth-card {
-    width: min(470px, calc(100% - 2rem));
-    margin-block: 1rem;
-  }
-
-  .unlock-shell {
+  .startup-shell {
     min-height: 100vh;
     align-items: flex-start;
     padding: 1rem;
     overflow-y: auto;
   }
 
-  .unlock-layout {
-    width: min(100%, 430px);
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .unlock-card,
-  .restore-card,
   .recovery-state {
     width: 100%;
   }
@@ -928,14 +811,6 @@
 }
 
 @media (max-width: 599px) {
-  .auth-intro {
-    display: none;
-  }
-
-  .auth-card {
-    align-self: start;
-  }
-
   .vault-app {
     grid-template-columns: 56px minmax(0, 1fr);
   }
@@ -1082,8 +957,7 @@
     outline-offset: 1px;
   }
 
-  .field-value.masked,
-  .lock-notice {
+  .field-value.masked {
     color: CanvasText;
   }
 }

@@ -211,17 +211,14 @@ pub(super) fn is_constraint_violation(error: &rusqlite::Error) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        security::derive_kek,
-        storage::{create_schema, open_encrypted_database},
-        tests::test_header,
-    };
+    use crate::storage::create_schema;
 
     fn test_connection() -> (tempfile::TempDir, Connection) {
         let temp = tempfile::tempdir().unwrap();
-        let key = derive_kek("a-long-test-password", &test_header()).unwrap();
-        let mut connection =
-            open_encrypted_database(&temp.path().join("vault.db"), key.as_slice()).unwrap();
+        let mut connection = Connection::open(temp.path().join("password-manager.db")).unwrap();
+        connection
+            .execute_batch("PRAGMA foreign_keys = ON;")
+            .unwrap();
         create_schema(&mut connection).unwrap();
         (temp, connection)
     }

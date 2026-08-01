@@ -6,7 +6,6 @@ import { App } from "./App"
 
 const mocks = vi.hoisted(() => ({
   status: vi.fn(),
-  onLocked: vi.fn(async () => () => undefined),
 }))
 
 vi.mock("@/services/vault-client", () => ({
@@ -16,7 +15,6 @@ vi.mock("@/services/vault-client", () => ({
 afterEach(() => {
   cleanup()
   mocks.status.mockReset()
-  mocks.onLocked.mockClear()
 })
 
 describe("App startup states", () => {
@@ -25,7 +23,7 @@ describe("App startup states", () => {
 
     render(<App />)
 
-    expect(screen.getByRole("main", { name: "正在检查本地保险库" })).toHaveAttribute(
+    expect(screen.getByRole("main", { name: "正在检查本地数据库" })).toHaveAttribute(
       "aria-live",
       "polite",
     )
@@ -39,13 +37,13 @@ describe("App startup states", () => {
     render(<App />)
 
     const alert = await screen.findByRole("alert")
-    expect(alert).toHaveTextContent("先保留应用数据目录的副本")
-    expect(alert).toHaveTextContent("不要删除原文件")
+    expect(alert).toHaveTextContent("复制应用数据目录")
+    expect(alert).toHaveTextContent("恢复已验证的明文备份")
 
-    fireEvent.click(screen.getByRole("button", { name: "重新检查保险库" }))
+    fireEvent.click(screen.getByRole("button", { name: "重新检查数据库" }))
 
     await waitFor(() => expect(mocks.status).toHaveBeenCalledTimes(2))
-    expect(screen.getByRole("main", { name: "正在检查本地保险库" })).toBeInTheDocument()
+    expect(screen.getByRole("main", { name: "正在检查本地数据库" })).toBeInTheDocument()
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 })

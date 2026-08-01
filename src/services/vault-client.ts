@@ -6,10 +6,10 @@ import {
   type AccountDetail,
   type AccountDraft,
   type AccountSummary,
+  type AppSettings,
   type BackupInfo,
   type Category,
   type SearchResult,
-  type SecuritySettings,
   type TrashItem,
   type Website,
   type WebsiteDraft,
@@ -22,11 +22,11 @@ export {
   type AccountField,
   type AccountFieldDraft,
   type AccountSummary,
+  type AppSettings,
   type BackupInfo,
   type Category,
   type FieldType,
   type SearchResult,
-  type SecuritySettings,
   type SystemRole,
   type TrashItem,
   type Website,
@@ -91,24 +91,6 @@ export const vaultClient = {
   status() {
     return desktopOrPrototype<{ exists: boolean }>("vault_status", undefined, async () =>
       (await browserPrototype()).status(),
-    )
-  },
-
-  async create(password: string) {
-    await desktopOrPrototype("create_vault", { password }, async () =>
-      (await browserPrototype()).create(password),
-    )
-  },
-
-  async unlock(password: string) {
-    await desktopOrPrototype("unlock_vault", { password }, async () =>
-      (await browserPrototype()).unlock(password),
-    )
-  },
-
-  async lock() {
-    await desktopOrPrototype("lock_vault", undefined, async () =>
-      (await browserPrototype()).lock(),
     )
   },
 
@@ -224,25 +206,19 @@ export const vaultClient = {
     else window.open(url, "_blank", "noopener,noreferrer")
   },
 
-  async recordActivity() {
-    await desktopOrPrototype("record_activity", undefined, async () =>
-      (await browserPrototype()).recordActivity(),
-    )
-  },
-
-  getSecuritySettings() {
-    return desktopOrPrototype<SecuritySettings>(
-      "get_security_settings",
+  getAppSettings() {
+    return desktopOrPrototype<AppSettings>(
+      "get_app_settings",
       undefined,
-      async () => (await browserPrototype()).getSecuritySettings(),
+      async () => (await browserPrototype()).getAppSettings(),
     )
   },
 
-  updateSecuritySettings(settings: SecuritySettings) {
-    return desktopOrPrototype<SecuritySettings>(
-      "update_security_settings",
+  updateAppSettings(settings: AppSettings) {
+    return desktopOrPrototype<AppSettings>(
+      "update_app_settings",
       { settings },
-      async () => (await browserPrototype()).updateSecuritySettings(settings),
+      async () => (await browserPrototype()).updateAppSettings(settings),
     )
   },
 
@@ -258,23 +234,17 @@ export const vaultClient = {
     )
   },
 
-  verifyBackup(backupId: string, password: string) {
+  verifyBackup(backupId: string) {
     return desktopOrPrototype<BackupInfo>(
       "verify_backup",
-      { backupId, password },
-      async () => (await browserPrototype()).verifyBackup(backupId, password),
+      { backupId },
+      async () => (await browserPrototype()).verifyBackup(backupId),
     )
   },
 
-  async restoreBackup(backupId: string, password: string) {
-    await desktopOrPrototype("restore_backup", { backupId, password }, async () =>
-      (await browserPrototype()).restoreBackup(backupId, password),
+  async restoreBackup(backupId: string) {
+    await desktopOrPrototype("restore_backup", { backupId }, async () =>
+      (await browserPrototype()).restoreBackup(backupId),
     )
-  },
-
-  async onLocked(callback: (reason: string) => void) {
-    if (!isTauriRuntime()) return () => undefined
-    const { listen } = await import("@tauri-apps/api/event")
-    return listen<string>("vault-locked", ({ payload }) => callback(payload))
   },
 }

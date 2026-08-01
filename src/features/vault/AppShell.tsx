@@ -9,7 +9,7 @@ import {
 } from "./components/DeleteConfirmDialog"
 import { PrimaryNavigation, type VaultView } from "./components/PrimaryNavigation"
 import { SearchResults } from "./components/SearchResults"
-import { SecuritySettingsView } from "./components/SecuritySettingsView"
+import { SettingsView } from "./components/SettingsView"
 import { TopBar } from "./components/TopBar"
 import { TrashView } from "./components/TrashView"
 import {
@@ -30,10 +30,6 @@ import {
   type WebsiteDraft,
 } from "@/services/vault-client"
 
-type AppShellProps = {
-  onLock: (notice?: string) => Promise<void>
-}
-
 type PreferredSelection = {
   categoryId?: string | null
   websiteId?: string | null
@@ -44,7 +40,7 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "操作失败，请重试。"
 }
 
-export function AppShell({ onLock }: AppShellProps) {
+export function AppShell() {
   const [view, setView] = useState<VaultView>("vault")
   const [categories, setCategories] = useState<Category[]>([])
   const [websites, setWebsites] = useState<Website[]>([])
@@ -164,25 +160,8 @@ export function AppShell({ onLock }: AppShellProps) {
     return () => {
       active = false
     }
-    // Initial unlocked-session load only. Subsequent refreshes are mutation-driven.
+    // Initial database load only. Subsequent refreshes are mutation-driven.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    let lastRecordedAt = 0
-    function recordActivity() {
-      const now = Date.now()
-      if (now - lastRecordedAt < 10_000) return
-      lastRecordedAt = now
-      void vaultClient.recordActivity().catch(() => {
-        // A concurrent native auto-lock event will unmount this shell.
-      })
-    }
-    const events: (keyof WindowEventMap)[] = ["pointerdown", "keydown", "focus"]
-    for (const event of events) window.addEventListener(event, recordActivity, true)
-    return () => {
-      for (const event of events) window.removeEventListener(event, recordActivity, true)
-    }
   }, [])
 
   useEffect(() => {
@@ -402,17 +381,12 @@ export function AppShell({ onLock }: AppShellProps) {
           setView(nextView)
           setQuery("")
         }}
-        onLock={async () => {
-          setRevealed({})
-          await onLock()
-        }}
       />
       <section className="workspace">
         <TopBar
           breadcrumbs={breadcrumbs}
           query={query}
           onQueryChange={setQuery}
-          onLock={onLock}
         />
         {loading ? (
           <div className="workspace-loading">正在读取保险库…</div>
@@ -425,11 +399,7 @@ export function AppShell({ onLock }: AppShellProps) {
         ) : view === "trash" ? (
           <TrashView items={trashItems} onRestore={restore} />
         ) : view === "settings" ? (
-          <SecuritySettingsView
-            onBackupLocked={() =>
-              onLock("加密备份已创建，保险库已安全锁定。")
-            }
-          />
+          <SettingsView />
         ) : (
           <div className="content-grid">
             <AccountBrowser

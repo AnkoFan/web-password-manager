@@ -90,7 +90,7 @@ const bundlePatterns = [
   [/\bindexedDB\b/, "bundle contains IndexedDB"],
   [/\bnavigator\.clipboard\b/, "bundle contains direct clipboard access"],
   [/fictional-(?:m25-)?secret/i, "bundle contains a test secret marker"],
-  [/\bmockPassword\b/, "bundle contains the browser prototype password state"],
+  [/\bmockMasterPassword\b/, "bundle contains a browser prototype master-password state"],
 ]
 
 for (const path of filesUnder(join(root, "dist")).filter((file) =>

@@ -1,6 +1,5 @@
-import { Folder, LockKeyhole, Settings, ShieldCheck, Trash2 } from "lucide-react"
+import { Folder, Settings, ShieldCheck, Trash2 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export type VaultView = "vault" | "trash" | "settings"
@@ -8,13 +7,11 @@ export type VaultView = "vault" | "trash" | "settings"
 type PrimaryNavigationProps = {
   activeView: VaultView
   onNavigate: (view: VaultView) => void
-  onLock: () => Promise<void>
 }
 
 export function PrimaryNavigation({
   activeView,
   onNavigate,
-  onLock,
 }: PrimaryNavigationProps) {
   return (
     <aside className="primary-nav">
@@ -53,15 +50,6 @@ export function PrimaryNavigation({
           设置
         </button>
       </nav>
-      <Button
-        type="button"
-        variant="outline"
-        className="mt-auto justify-start"
-        onClick={() => void onLock()}
-      >
-        <LockKeyhole data-icon="inline-start" />
-        锁定
-      </Button>
     </aside>
   )
 }

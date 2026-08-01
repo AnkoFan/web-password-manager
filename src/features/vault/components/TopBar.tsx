@@ -1,16 +1,14 @@
-import { ChevronRight, LockKeyhole, Search } from "lucide-react"
+import { ChevronRight, Search } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 type TopBarProps = {
   breadcrumbs: string[]
   query: string
   onQueryChange: (query: string) => void
-  onLock: () => Promise<void>
 }
 
-export function TopBar({ breadcrumbs, query, onQueryChange, onLock }: TopBarProps) {
+export function TopBar({ breadcrumbs, query, onQueryChange }: TopBarProps) {
   return (
     <header className="top-bar">
       <div className="breadcrumbs" aria-label="当前位置">
@@ -33,10 +31,6 @@ export function TopBar({ breadcrumbs, query, onQueryChange, onLock }: TopBarProp
           />
           <kbd>Ctrl K</kbd>
         </div>
-        <Button type="button" onClick={() => void onLock()}>
-          <LockKeyhole data-icon="inline-start" />
-          锁定
-        </Button>
       </div>
     </header>
   )
