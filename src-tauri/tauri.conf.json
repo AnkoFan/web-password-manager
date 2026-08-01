@@ -30,6 +30,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "licenseFile": "../LICENSE",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -44,7 +45,8 @@
       "nsis": {
         "displayLanguageSelector": false,
         "installMode": "currentUser",
-        "languages": ["SimpChinese", "English"]
+        "languages": ["SimpChinese", "English"],
+        "installerHooks": "windows/nsis-hooks.nsh"
       }
     }
   }

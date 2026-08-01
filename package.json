@@ -10,8 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:architecture": "node scripts/check-architecture.mjs",
+    "check:release": "node scripts/check-release-config.mjs",
     "check:sensitive": "node scripts/check-sensitive-surfaces.mjs",
-    "check:frontend": "npm run check:architecture && npm run test && npm run build && npm run check:sensitive",
+    "check:frontend": "npm run check:architecture && npm run check:release && npm run test && npm run build && npm run check:sensitive",
     "check:rust": "scripts\\cargo-test.cmd",
     "check": "npm run check:frontend && npm run check:rust",
     "tauri": "tauri"

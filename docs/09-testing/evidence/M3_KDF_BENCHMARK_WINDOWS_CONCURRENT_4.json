@@ -1,5 +1,5 @@
 {
-    "recordedAt":  "2026-08-01T04:58:05.9938691Z",
+    "recordedAt":  "2026-08-01T07:00:45.2966026Z",
     "testData":  "TEST-ONLY fixed benchmark password and salt; no user data",
     "operatingSystem":  {
                             "family":  "Windows",
@@ -13,8 +13,8 @@
                   },
     "physicalMemoryBytes":  16786575360,
     "rustVersion":  "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-    "benchmarkExecutableSha256":  "ef8eaa795bfdc4ff48fa757159a66d6a43dbe60b6aa721a9037cc0764d9e65f1",
-    "peakWorkingSetBytes":  272531456,
+    "benchmarkExecutableSha256":  "16d9134aee830d9f75a416021ac9782d5b3f69d11c685ac5cecf1f24f03de6ad",
+    "peakWorkingSetBytes":  272535552,
     "benchmark":  {
                       "profile":  "argon2id-19-m65536-t3-p1",
                       "memoryKib":  65536,
@@ -23,26 +23,26 @@
                       "samples":  10,
                       "concurrentWorkers":  4,
                       "sequentialMillis":  [
-                                               149.0933,
-                                               147.96790000000001,
-                                               163.6804,
-                                               167.7721,
-                                               165.75500000000002,
-                                               152.674,
-                                               135.02700000000002,
-                                               130.50809999999998,
-                                               141.32629999999997,
-                                               144.9292
+                                               116.6078,
+                                               103.9611,
+                                               106.534,
+                                               115.2675,
+                                               111.7264,
+                                               112.97319999999999,
+                                               120.25030000000001,
+                                               118.6681,
+                                               130.7978,
+                                               121.8447
                                            ],
-                      "sequentialMinMillis":  130.50809999999998,
-                      "sequentialMedianMillis":  149.0933,
-                      "sequentialP95Millis":  167.7721,
-                      "concurrentWallMillis":  285.22069999999997,
+                      "sequentialMinMillis":  103.9611,
+                      "sequentialMedianMillis":  116.6078,
+                      "sequentialP95Millis":  130.7978,
+                      "concurrentWallMillis":  231.4746,
                       "concurrentWorkerMillis":  [
-                                                     284.5516,
-                                                     282.13169999999997,
-                                                     283.8449,
-                                                     278.9046
+                                                     229.84470000000002,
+                                                     231.0827,
+                                                     224.7824,
+                                                     229.28029999999998
                                                  ]
                   }
 }

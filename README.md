@@ -61,4 +61,4 @@ scripts\tauri-build.cmd
 
 ## 开源许可
 
-许可证尚未选择。在正式选定许可证前，请勿假定本项目已授予任何特定开源许可；参见 `LICENSE.md` 和 `LICENSE_SELECTION.md`。
+本项目采用 [MIT License](LICENSE)；选择记录与依赖归属后续工作见 `LICENSE_SELECTION.md`。

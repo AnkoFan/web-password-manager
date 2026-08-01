@@ -68,6 +68,8 @@ node .\scripts\scan-test-canaries.mjs `
 
 扫描器以流式方式匹配 UTF-8 和 UTF-16LE，只输出命中的文件路径，不输出秘密上下文。固定夹具的验证结果必须为 `passed: true`。完成后按测试环境清理策略删除虚构保险库、缓存和测试转储。
 
+2026-08-01 在当前 Windows 上使用隔离 identifier `io.github.webpasswordmanager.m3installtest` 启动 0.1.1 测试构建，等待 WebView2 初始化后强制结束进程。扫描其 `%LOCALAPPDATA%` 目录的 169 个文件，三个固定 TEST-ONLY 主密码/字段秘密/Token 标记均无命中，结果为 `passed: true`。随后通过隔离卸载器的显式 `/DELETEAPPDATA` 路径删除安装目录、注册项及该 identifier 的 Local/Roaming 数据；未扫描或清理正式 identifier。
+
 ## 未关闭
 
 - 真实 Windows 锁屏、睡眠/唤醒和切换用户记录。
