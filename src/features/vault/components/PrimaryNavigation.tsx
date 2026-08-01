@@ -53,7 +53,12 @@ export function PrimaryNavigation({
           设置
         </button>
       </nav>
-      <Button type="button" variant="outline" className="mt-auto justify-start" onClick={onLock}>
+      <Button
+        type="button"
+        variant="outline"
+        className="mt-auto justify-start"
+        onClick={() => void onLock()}
+      >
         <LockKeyhole data-icon="inline-start" />
         锁定
       </Button>

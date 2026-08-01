@@ -14,8 +14,9 @@ use zeroize::{Zeroize, Zeroizing};
 
 use crate::domain::EntityId;
 use crate::security::{
-    derive_kek, unwrap_database_key, wrap_database_key, VaultHeader, KDF_ITERATIONS,
-    KDF_MEMORY_KIB, KDF_PARALLELISM,
+    derive_kek_v2, unwrap_stored_database_key, validate_v2_stored_header, wrap_database_key_v2,
+    StoredVaultHeader, VaultHeader, VaultHeaderV2, VaultKdfV2, VaultKeyWrapV2, ARGON2_VERSION,
+    KDF_ITERATIONS, KDF_MEMORY_KIB, KDF_OUTPUT_LENGTH, KDF_PARALLELISM, VAULT_HEADER_MAGIC,
 };
 
 pub(crate) const HEADER_FILE: &str = "vault.header.json";
@@ -28,6 +29,13 @@ const CURRENT_SCHEMA_VERSION: i64 = 2;
 const BACKUPS_DIRECTORY: &str = "backups";
 const BACKUP_MANIFEST_FILE: &str = "manifest.json";
 const MAX_BACKUP_MANIFEST_BYTES: u64 = 64 * 1024;
+const MIGRATION_BACKUPS_DIRECTORY: &str = "migration-backups";
+const MIGRATION_MANIFEST_FILE: &str = "migration-manifest.json";
+const MIGRATION_FAIL_NONE: u8 = 0;
+pub(crate) const MIGRATION_FAIL_AFTER_SNAPSHOT: u8 = 1;
+pub(crate) const MIGRATION_FAIL_AFTER_SCHEMA: u8 = 2;
+pub(crate) const MIGRATION_FAIL_BEFORE_HEADER_COMMIT: u8 = 3;
+pub(crate) const MIGRATION_FAIL_AFTER_ROLLBACK_RENAME: u8 = 4;
 
 pub(crate) struct VaultPaths {
     pub(crate) directory: PathBuf,
@@ -54,6 +62,56 @@ struct BackupManifest {
     database_sha256: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MigrationManifest {
+    format_version: u32,
+    operation_id: String,
+    created_at: i64,
+    header_format_version: u32,
+    schema_version: i64,
+    header_length: u64,
+    database_length: u64,
+    header_sha256: String,
+    database_sha256: String,
+}
+
+pub(crate) fn validate_migration_snapshot(directory: &Path) -> Result<(), String> {
+    let manifest_path = directory.join(MIGRATION_MANIFEST_FILE);
+    let metadata = fs::metadata(&manifest_path).map_err(|_| "迁移快照清单不存在".to_string())?;
+    if metadata.len() == 0 || metadata.len() > MAX_BACKUP_MANIFEST_BYTES {
+        return Err("迁移快照清单大小无效".into());
+    }
+    let manifest: MigrationManifest = serde_json::from_slice(
+        &fs::read(&manifest_path).map_err(|_| "无法读取迁移快照清单".to_string())?,
+    )
+    .map_err(|_| "迁移快照清单无效".to_string())?;
+    if manifest.format_version != 1
+        || EntityId::parse(&manifest.operation_id).is_err()
+        || directory.file_name().and_then(|name| name.to_str())
+            != Some(manifest.operation_id.as_str())
+    {
+        return Err("迁移快照清单无效".into());
+    }
+    let header = directory.join(HEADER_FILE);
+    let database = directory.join(DATABASE_FILE);
+    if fs::metadata(&header)
+        .map_err(|_| "迁移快照不完整".to_string())?
+        .len()
+        != manifest.header_length
+        || fs::metadata(&database)
+            .map_err(|_| "迁移快照不完整".to_string())?
+            .len()
+            != manifest.database_length
+        || hash_file(&header)? != manifest.header_sha256
+        || hash_file(&database)? != manifest.database_sha256
+    {
+        return Err("迁移快照完整性校验失败".into());
+    }
+    load_header(&header)?;
+    Ok(())
+}
+
 impl From<&BackupManifest> for BackupInfo {
     fn from(value: &BackupManifest) -> Self {
         Self {
@@ -76,24 +134,41 @@ pub(crate) fn vault_paths(app: &AppHandle) -> Result<VaultPaths, String> {
     })
 }
 
-pub(crate) fn load_header(path: &Path) -> Result<VaultHeader, String> {
+pub(crate) fn load_header(path: &Path) -> Result<StoredVaultHeader, String> {
     let metadata = fs::metadata(path).map_err(|_| "无法读取保险库头信息".to_string())?;
     if metadata.len() == 0 || metadata.len() > MAX_HEADER_BYTES {
         return Err("保险库头信息大小无效".into());
     }
     let bytes = fs::read(path).map_err(|_| "无法读取保险库头信息".to_string())?;
-    let header: VaultHeader =
+    let value: serde_json::Value =
         serde_json::from_slice(&bytes).map_err(|_| "保险库头信息无效".to_string())?;
-    if header.format_version != 1
-        || header.kdf != "argon2id"
-        || header.memory_kib != KDF_MEMORY_KIB
-        || header.iterations != KDF_ITERATIONS
-        || header.parallelism != KDF_PARALLELISM
-        || header.wrap_algorithm != "xchacha20poly1305"
-    {
-        return Err("保险库使用了不受支持的安全参数".into());
+    let format_version = value
+        .get("formatVersion")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| "保险库头信息无效".to_string())?;
+    match format_version {
+        1 => {
+            let header: VaultHeader =
+                serde_json::from_value(value).map_err(|_| "保险库头信息无效".to_string())?;
+            if header.format_version != 1
+                || header.kdf != "argon2id"
+                || header.memory_kib != KDF_MEMORY_KIB
+                || header.iterations != KDF_ITERATIONS
+                || header.parallelism != KDF_PARALLELISM
+                || header.wrap_algorithm != "xchacha20poly1305"
+            {
+                return Err("保险库使用了不受支持的安全参数".into());
+            }
+            Ok(StoredVaultHeader::V1(header))
+        }
+        2 => {
+            let header: VaultHeaderV2 =
+                serde_json::from_value(value).map_err(|_| "保险库头信息无效".to_string())?;
+            validate_v2_stored_header(&header)?;
+            Ok(StoredVaultHeader::V2(header))
+        }
+        _ => Err("保险库由更新版本的软件创建，请升级应用后再打开".into()),
     }
-    Ok(header)
 }
 
 pub(crate) fn open_encrypted_database(path: &Path, key: &[u8]) -> Result<Connection, String> {
@@ -125,7 +200,16 @@ pub(crate) fn open_encrypted_database(path: &Path, key: &[u8]) -> Result<Connect
     Ok(connection)
 }
 
+#[cfg(test)]
 pub(crate) fn create_schema(connection: &mut Connection) -> Result<(), String> {
+    let vault_id = EntityId::new_v4();
+    create_schema_with_vault_id(connection, &vault_id)
+}
+
+fn create_schema_with_vault_id(
+    connection: &mut Connection,
+    vault_id: &EntityId,
+) -> Result<(), String> {
     let transaction = connection
         .transaction()
         .map_err(|_| "无法开始保险库初始化".to_string())?;
@@ -143,7 +227,7 @@ pub(crate) fn create_schema(connection: &mut Connection) -> Result<(), String> {
     transaction
         .execute_batch(REMOVE_PROTOTYPE_DATA)
         .map_err(|_| "无法清理第一阶段原型结构".to_string())?;
-    initialize_vault_meta(&transaction)?;
+    initialize_vault_meta_with_id(&transaction, vault_id)?;
     transaction
         .execute(
             "INSERT INTO metadata (key, value) VALUES ('vault_marker', ?1)",
@@ -268,6 +352,13 @@ fn migrate_schema(connection: &mut Connection) -> Result<(), String> {
 
 fn initialize_vault_meta(connection: &Connection) -> Result<(), String> {
     let vault_id = EntityId::new_v4();
+    initialize_vault_meta_with_id(connection, &vault_id)
+}
+
+fn initialize_vault_meta_with_id(
+    connection: &Connection,
+    vault_id: &EntityId,
+) -> Result<(), String> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|_| "系统时间无效".to_string())
@@ -285,12 +376,33 @@ fn initialize_vault_meta(connection: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+fn database_vault_id(connection: &Connection) -> Result<EntityId, String> {
+    let bytes: Vec<u8> = connection
+        .query_row("SELECT id FROM vault_meta", [], |row| row.get(0))
+        .map_err(|_| "无法读取保险库标识".to_string())?;
+    EntityId::from_slice(&bytes).map_err(|_| "保险库标识无效".to_string())
+}
+
+fn verify_header_database_identity(
+    header: &StoredVaultHeader,
+    connection: &Connection,
+) -> Result<(), String> {
+    if let Some(header_id) = header.vault_id() {
+        let database_id = database_vault_id(connection)?.as_uuid_string();
+        if header_id != database_id {
+            return Err("保险库头与数据库标识不一致".into());
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn create_vault_files(paths: &VaultPaths, password: &str) -> Result<Connection, String> {
     fs::create_dir_all(&paths.directory).map_err(|_| "无法创建保险库目录".to_string())?;
-    if paths.header.exists() || paths.database.exists() {
+    if paths.header.exists() || paths.database.exists() || has_migration_artifacts(paths)? {
         return Err("本机已经存在保险库".into());
     }
 
+    let vault_id = EntityId::new_v4();
     let mut salt = [0_u8; 16];
     OsRng.fill_bytes(&mut salt);
     let mut wrap_nonce = [0_u8; 24];
@@ -298,27 +410,30 @@ pub(crate) fn create_vault_files(paths: &VaultPaths, password: &str) -> Result<C
     let mut database_key = Zeroizing::new(vec![0_u8; 32]);
     OsRng.fill_bytes(database_key.as_mut_slice());
 
-    let mut header = VaultHeader {
-        format_version: 1,
-        kdf: "argon2id".into(),
-        kdf_salt_hex: hex::encode(salt),
-        memory_kib: KDF_MEMORY_KIB,
-        iterations: KDF_ITERATIONS,
-        parallelism: KDF_PARALLELISM,
-        wrap_algorithm: "xchacha20poly1305".into(),
-        wrap_nonce_hex: hex::encode(wrap_nonce),
-        wrapped_dek_hex: String::new(),
+    let mut header = VaultHeaderV2 {
+        magic: VAULT_HEADER_MAGIC.into(),
+        format_version: 2,
+        vault_id: vault_id.as_uuid_string(),
+        kdf: VaultKdfV2 {
+            algorithm: "argon2id".into(),
+            version: ARGON2_VERSION,
+            salt_hex: hex::encode(salt),
+            memory_kib: KDF_MEMORY_KIB,
+            iterations: KDF_ITERATIONS,
+            parallelism: KDF_PARALLELISM,
+            output_length: KDF_OUTPUT_LENGTH,
+        },
+        key_wrap: VaultKeyWrapV2 {
+            algorithm: "xchacha20poly1305".into(),
+            nonce_hex: hex::encode(wrap_nonce),
+            wrapped_dek_hex: String::new(),
+        },
     };
     salt.zeroize();
-    let kek = derive_kek(password, &header)?;
-    let mut wrapped_dek = wrap_database_key(
-        kek.as_slice(),
-        database_key.as_slice(),
-        &header,
-        &wrap_nonce,
-    )?;
+    let kek = derive_kek_v2(password, &header)?;
+    let mut wrapped_dek = wrap_database_key_v2(kek.as_slice(), database_key.as_slice(), &header)?;
     wrap_nonce.zeroize();
-    header.wrapped_dek_hex = hex::encode(&wrapped_dek);
+    header.key_wrap.wrapped_dek_hex = hex::encode(&wrapped_dek);
     wrapped_dek.zeroize();
 
     let temp_database = paths.directory.join("vault.db.creating");
@@ -331,12 +446,14 @@ pub(crate) fn create_vault_files(paths: &VaultPaths, password: &str) -> Result<C
     }
 
     let mut connection = open_encrypted_database(&temp_database, database_key.as_slice())?;
-    create_schema(&mut connection)?;
+    create_schema_with_vault_id(&mut connection, &vault_id)?;
     drop(connection);
 
-    let header_json =
-        serde_json::to_vec_pretty(&header).map_err(|_| "无法生成保险库头信息".to_string())?;
+    let header_json = serde_json::to_vec_pretty(&StoredVaultHeader::V2(header))
+        .map_err(|_| "无法生成保险库头信息".to_string())?;
     fs::write(&temp_header, header_json).map_err(|_| "无法写入保险库头信息".to_string())?;
+    sync_file(&temp_database, "无法同步保险库数据库")?;
+    sync_file(&temp_header, "无法同步保险库头信息")?;
     fs::rename(&temp_database, &paths.database)
         .map_err(|_| "无法完成保险库数据库创建".to_string())?;
     if fs::rename(&temp_header, &paths.header).is_err() {
@@ -346,17 +463,279 @@ pub(crate) fn create_vault_files(paths: &VaultPaths, password: &str) -> Result<C
 
     let connection = open_encrypted_database(&paths.database, database_key.as_slice())?;
     verify_database(&connection)?;
+    let stored_header = load_header(&paths.header)?;
+    verify_header_database_identity(&stored_header, &connection)?;
+    Ok(connection)
+}
+
+fn migration_artifact_paths(paths: &VaultPaths, prefix: &str) -> Result<Vec<PathBuf>, String> {
+    if !paths.directory.exists() {
+        return Ok(Vec::new());
+    }
+    let mut matches = Vec::new();
+    for entry in fs::read_dir(&paths.directory).map_err(|_| "无法检查保险库恢复状态".to_string())?
+    {
+        let entry = entry.map_err(|_| "无法检查保险库恢复状态".to_string())?;
+        if entry.file_name().to_string_lossy().starts_with(prefix) {
+            matches.push(entry.path());
+        }
+    }
+    matches.sort();
+    Ok(matches)
+}
+
+fn has_migration_artifacts(paths: &VaultPaths) -> Result<bool, String> {
+    Ok(
+        !migration_artifact_paths(paths, "vault.header.json.rollback-")?.is_empty()
+            || !migration_artifact_paths(paths, "vault.header.json.migrating-")?.is_empty()
+            || paths.directory.join(MIGRATION_BACKUPS_DIRECTORY).exists(),
+    )
+}
+
+pub(crate) fn recover_interrupted_header_replacement(paths: &VaultPaths) -> Result<(), String> {
+    if paths.header.exists() {
+        return Ok(());
+    }
+    let rollback = migration_artifact_paths(paths, "vault.header.json.rollback-")?;
+    if rollback.len() == 1 && paths.database.exists() {
+        fs::rename(&rollback[0], &paths.header)
+            .map_err(|_| "无法恢复中断的保险库头迁移".to_string())?;
+        return Ok(());
+    }
+    if !rollback.is_empty() || paths.database.exists() {
+        return Err("检测到不完整的保险库迁移，需要人工恢复".into());
+    }
+    Ok(())
+}
+
+fn cleanup_header_migration_artifacts(paths: &VaultPaths) -> Result<(), String> {
+    for prefix in [
+        "vault.header.json.rollback-",
+        "vault.header.json.migrating-",
+    ] {
+        for path in migration_artifact_paths(paths, prefix)? {
+            fs::remove_file(path).map_err(|_| "无法清理保险库迁移残留".to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn current_schema_version(connection: &Connection) -> Result<i64, String> {
+    connection
+        .query_row("PRAGMA user_version;", [], |row| row.get(0))
+        .map_err(|_| "无法读取保险库数据版本".to_string())
+}
+
+fn create_migration_snapshot(
+    paths: &VaultPaths,
+    header: &StoredVaultHeader,
+    schema_version: i64,
+) -> Result<String, String> {
+    let operation_id = EntityId::new_v4().as_uuid_string();
+    let root = paths.directory.join(MIGRATION_BACKUPS_DIRECTORY);
+    fs::create_dir_all(&root).map_err(|_| "无法创建迁移快照目录".to_string())?;
+    let temporary = root.join(format!("{operation_id}.creating"));
+    let final_directory = root.join(&operation_id);
+    fs::create_dir(&temporary).map_err(|_| "无法创建迁移快照".to_string())?;
+
+    let result = (|| {
+        let snapshot_header = temporary.join(HEADER_FILE);
+        let snapshot_database = temporary.join(DATABASE_FILE);
+        fs::copy(&paths.header, &snapshot_header)
+            .map_err(|_| "无法复制迁移前保险库头".to_string())?;
+        fs::copy(&paths.database, &snapshot_database)
+            .map_err(|_| "无法复制迁移前数据库".to_string())?;
+        sync_file(&snapshot_header, "无法同步迁移前保险库头")?;
+        sync_file(&snapshot_database, "无法同步迁移前数据库")?;
+
+        let manifest = MigrationManifest {
+            format_version: 1,
+            operation_id: operation_id.clone(),
+            created_at: unix_millis()?,
+            header_format_version: header.format_version(),
+            schema_version,
+            header_length: fs::metadata(&snapshot_header)
+                .map_err(|_| "无法读取迁移快照".to_string())?
+                .len(),
+            database_length: fs::metadata(&snapshot_database)
+                .map_err(|_| "无法读取迁移快照".to_string())?
+                .len(),
+            header_sha256: hash_file(&snapshot_header)?,
+            database_sha256: hash_file(&snapshot_database)?,
+        };
+        let manifest_path = temporary.join(MIGRATION_MANIFEST_FILE);
+        let bytes =
+            serde_json::to_vec_pretty(&manifest).map_err(|_| "无法生成迁移清单".to_string())?;
+        fs::write(&manifest_path, bytes).map_err(|_| "无法写入迁移清单".to_string())?;
+        sync_file(&manifest_path, "无法同步迁移清单")?;
+        fs::rename(&temporary, &final_directory).map_err(|_| "无法提交迁移快照".to_string())?;
+        validate_migration_snapshot(&final_directory)?;
+        Ok(())
+    })();
+    if result.is_err() && temporary.exists() {
+        let _ = fs::remove_dir_all(&temporary);
+    }
+    result.map(|_| operation_id)
+}
+
+fn build_v2_header(
+    password: &str,
+    database_key: &[u8],
+    connection: &Connection,
+) -> Result<VaultHeaderV2, String> {
+    let mut salt = [0_u8; 16];
+    OsRng.fill_bytes(&mut salt);
+    let mut nonce = [0_u8; 24];
+    OsRng.fill_bytes(&mut nonce);
+    let mut header = VaultHeaderV2 {
+        magic: VAULT_HEADER_MAGIC.into(),
+        format_version: 2,
+        vault_id: database_vault_id(connection)?.as_uuid_string(),
+        kdf: VaultKdfV2 {
+            algorithm: "argon2id".into(),
+            version: ARGON2_VERSION,
+            salt_hex: hex::encode(salt),
+            memory_kib: KDF_MEMORY_KIB,
+            iterations: KDF_ITERATIONS,
+            parallelism: KDF_PARALLELISM,
+            output_length: KDF_OUTPUT_LENGTH,
+        },
+        key_wrap: VaultKeyWrapV2 {
+            algorithm: "xchacha20poly1305".into(),
+            nonce_hex: hex::encode(nonce),
+            wrapped_dek_hex: String::new(),
+        },
+    };
+    salt.zeroize();
+    nonce.zeroize();
+    let kek = derive_kek_v2(password, &header)?;
+    let mut wrapped = wrap_database_key_v2(kek.as_slice(), database_key, &header)?;
+    header.key_wrap.wrapped_dek_hex = hex::encode(&wrapped);
+    wrapped.zeroize();
+    Ok(header)
+}
+
+fn replace_header_with_v2(
+    paths: &VaultPaths,
+    password: &str,
+    database_key: &[u8],
+    connection: &Connection,
+    operation_id: &str,
+    failpoint: u8,
+) -> Result<StoredVaultHeader, String> {
+    let header = build_v2_header(password, database_key, connection)?;
+    let temporary = paths
+        .directory
+        .join(format!("vault.header.json.migrating-{operation_id}"));
+    let rollback = paths
+        .directory
+        .join(format!("vault.header.json.rollback-{operation_id}"));
+    if temporary.exists() || rollback.exists() {
+        return Err("检测到冲突的保险库迁移残留".into());
+    }
+
+    let bytes = serde_json::to_vec_pretty(&StoredVaultHeader::V2(header))
+        .map_err(|_| "无法生成安全头 v2".to_string())?;
+    fs::write(&temporary, bytes).map_err(|_| "无法写入安全头 v2 暂存文件".to_string())?;
+    sync_file(&temporary, "无法同步安全头 v2 暂存文件")?;
+    let staged = load_header(&temporary)?;
+    let staged_key = unwrap_stored_database_key(password, &staged)?;
+    if staged_key.as_slice() != database_key {
+        return Err("安全头 v2 暂存验证失败".into());
+    }
+    verify_header_database_identity(&staged, connection)?;
+    if failpoint == MIGRATION_FAIL_BEFORE_HEADER_COMMIT {
+        return Err("测试注入：安全头提交前中断".into());
+    }
+
+    fs::rename(&paths.header, &rollback).map_err(|_| "无法创建保险库头回滚点".to_string())?;
+    if failpoint == MIGRATION_FAIL_AFTER_ROLLBACK_RENAME {
+        return Err("测试注入：回滚头创建后中断".into());
+    }
+    if let Err(error) = fs::rename(&temporary, &paths.header) {
+        let _ = fs::rename(&rollback, &paths.header);
+        return Err(format!("无法提交安全头 v2：{error}"));
+    }
+
+    let committed = (|| {
+        sync_file(&paths.header, "无法同步安全头 v2")?;
+        let committed = load_header(&paths.header)?;
+        let committed_key = unwrap_stored_database_key(password, &committed)?;
+        if committed_key.as_slice() != database_key {
+            return Err("安全头 v2 提交验证失败".into());
+        }
+        verify_header_database_identity(&committed, connection)?;
+        Ok(committed)
+    })();
+    match committed {
+        Ok(header) => {
+            fs::remove_file(&rollback).map_err(|_| "无法清理保险库头回滚点".to_string())?;
+            Ok(header)
+        }
+        Err(error) => {
+            let _ = fs::remove_file(&paths.header);
+            let _ = fs::rename(&rollback, &paths.header);
+            Err(error)
+        }
+    }
+}
+
+fn unlock_vault_files_inner(
+    paths: &VaultPaths,
+    password: &str,
+    failpoint: u8,
+) -> Result<Connection, String> {
+    recover_interrupted_header_replacement(paths)?;
+    let header = load_header(&paths.header)?;
+    let database_key = unwrap_stored_database_key(password, &header)?;
+    let mut connection = open_encrypted_database(&paths.database, database_key.as_slice())?;
+    verify_database_envelope(&connection)?;
+    let schema_version = current_schema_version(&connection)?;
+    let requires_migration =
+        header.format_version() == 1 || schema_version < CURRENT_SCHEMA_VERSION;
+    let operation_id = if requires_migration {
+        Some(create_migration_snapshot(paths, &header, schema_version)?)
+    } else {
+        None
+    };
+    if failpoint == MIGRATION_FAIL_AFTER_SNAPSHOT {
+        return Err("测试注入：迁移快照后中断".into());
+    }
+    migrate_schema(&mut connection)?;
+    verify_database(&connection)?;
+    if failpoint == MIGRATION_FAIL_AFTER_SCHEMA {
+        return Err("测试注入：数据库迁移后中断".into());
+    }
+    let committed_header = if header.format_version() == 1 {
+        replace_header_with_v2(
+            paths,
+            password,
+            database_key.as_slice(),
+            &connection,
+            operation_id
+                .as_deref()
+                .ok_or_else(|| "缺少保险库迁移操作标识".to_string())?,
+            failpoint,
+        )?
+    } else {
+        header
+    };
+    verify_header_database_identity(&committed_header, &connection)?;
+    cleanup_header_migration_artifacts(paths)?;
     Ok(connection)
 }
 
 pub(crate) fn unlock_vault_files(paths: &VaultPaths, password: &str) -> Result<Connection, String> {
-    let header = load_header(&paths.header)?;
-    let database_key = unwrap_database_key(password, &header)?;
-    let mut connection = open_encrypted_database(&paths.database, database_key.as_slice())?;
-    verify_database_envelope(&connection)?;
-    migrate_schema(&mut connection)?;
-    verify_database(&connection)?;
-    Ok(connection)
+    unlock_vault_files_inner(paths, password, MIGRATION_FAIL_NONE)
+}
+
+#[cfg(test)]
+pub(crate) fn unlock_vault_files_with_failpoint(
+    paths: &VaultPaths,
+    password: &str,
+    failpoint: u8,
+) -> Result<Connection, String> {
+    unlock_vault_files_inner(paths, password, failpoint)
 }
 
 fn unix_millis() -> Result<i64, String> {
@@ -516,9 +895,10 @@ pub(crate) fn verify_backup(
         directory,
     };
     let header = load_header(&backup_paths.header)?;
-    let database_key = unwrap_database_key(password, &header)?;
+    let database_key = unwrap_stored_database_key(password, &header)?;
     let connection = open_encrypted_database(&backup_paths.database, database_key.as_slice())?;
     verify_database(&connection)?;
+    verify_header_database_identity(&header, &connection)?;
     Ok(BackupInfo::from(&manifest))
 }
 
@@ -554,9 +934,10 @@ pub(crate) fn restore_backup(
         database: staged_database.clone(),
     };
     let staged_header_data = load_header(&staged_paths.header)?;
-    let staged_key = unwrap_database_key(password, &staged_header_data)?;
+    let staged_key = unwrap_stored_database_key(password, &staged_header_data)?;
     let staged_connection = open_encrypted_database(&staged_paths.database, staged_key.as_slice())?;
     verify_database(&staged_connection)?;
+    verify_header_database_identity(&staged_header_data, &staged_connection)?;
     drop(staged_connection);
 
     fs::copy(&paths.header, &rollback_header).map_err(|_| "无法创建恢复回滚点".to_string())?;

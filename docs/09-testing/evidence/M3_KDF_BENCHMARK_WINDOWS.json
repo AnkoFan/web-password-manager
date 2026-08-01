@@ -1,0 +1,45 @@
+{
+    "recordedAt":  "2026-07-30T16:47:16.0038140Z",
+    "testData":  "TEST-ONLY fixed benchmark password and salt; no user data",
+    "operatingSystem":  {
+                            "family":  "Windows",
+                            "version":  "10.0.26200",
+                            "buildNumber":  "26200",
+                            "architecture":  "x86_64"
+                        },
+    "processor":  {
+                      "name":  "13th Gen Intel(R) Core(TM) i7-13620H",
+                      "logicalProcessors":  16
+                  },
+    "physicalMemoryBytes":  16786575360,
+    "rustVersion":  "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "peakWorkingSetBytes":  138190848,
+    "benchmark":  {
+                      "profile":  "argon2id-19-m65536-t3-p1",
+                      "memoryKib":  65536,
+                      "iterations":  3,
+                      "parallelism":  1,
+                      "samples":  10,
+                      "concurrentWorkers":  2,
+                      "sequentialMillis":  [
+                                               111.0341,
+                                               128.772,
+                                               108.1772,
+                                               116.8449,
+                                               105.15190000000001,
+                                               100.1567,
+                                               112.7743,
+                                               131.53480000000002,
+                                               123.55919999999999,
+                                               121.4035
+                                           ],
+                      "sequentialMinMillis":  100.1567,
+                      "sequentialMedianMillis":  116.8449,
+                      "sequentialP95Millis":  131.53480000000002,
+                      "concurrentWallMillis":  138.0263,
+                      "concurrentWorkerMillis":  [
+                                                     137.64409999999998,
+                                                     137.6823
+                                                 ]
+                  }
+}

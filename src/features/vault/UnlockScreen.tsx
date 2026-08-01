@@ -108,12 +108,17 @@ export function UnlockScreen({ onUnlock, onRestore, notice }: UnlockScreenProps)
           <form onSubmit={submit}>
             <CardContent>
               <FieldGroup>
-                {notice ? <p className="lock-notice">{notice}</p> : null}
+                {notice ? (
+                  <p className="lock-notice" role="status" aria-live="polite">
+                    {notice}
+                  </p>
+                ) : null}
                 <Field data-invalid={Boolean(error)}>
                   <FieldLabel htmlFor="unlock-password">主密码</FieldLabel>
                   <div className="password-control">
                     <Input
                       id="unlock-password"
+                      aria-describedby={error ? "unlock-error" : undefined}
                       aria-invalid={Boolean(error)}
                       autoFocus
                       autoComplete="current-password"
@@ -131,7 +136,7 @@ export function UnlockScreen({ onUnlock, onRestore, notice }: UnlockScreenProps)
                       {visible ? <EyeOff /> : <Eye />}
                     </Button>
                   </div>
-                  <FieldError>{error}</FieldError>
+                  <FieldError id="unlock-error">{error}</FieldError>
                 </Field>
               </FieldGroup>
             </CardContent>

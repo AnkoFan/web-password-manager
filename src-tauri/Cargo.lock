@@ -105,6 +105,7 @@ dependencies = [
  "blake2",
  "cpufeatures",
  "password-hash",
+ "zeroize",
 ]
 
 [[package]]
@@ -4793,6 +4794,7 @@ dependencies = [
  "unicode-normalization",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 

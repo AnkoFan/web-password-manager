@@ -33,7 +33,7 @@ export function TopBar({ breadcrumbs, query, onQueryChange, onLock }: TopBarProp
           />
           <kbd>Ctrl K</kbd>
         </div>
-        <Button type="button" onClick={onLock}>
+        <Button type="button" onClick={() => void onLock()}>
           <LockKeyhole data-icon="inline-start" />
           锁定
         </Button>

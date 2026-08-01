@@ -14,8 +14,8 @@ use crate::{
     security_controls::{save_settings, SecuritySettings},
     storage::{
         create_backup as create_backup_files, create_vault_files, list_backups as load_backups,
-        restore_backup as restore_backup_files, unlock_vault_files, vault_paths,
-        verify_backup as verify_backup_files, BackupInfo,
+        recover_interrupted_header_replacement, restore_backup as restore_backup_files,
+        unlock_vault_files, vault_paths, verify_backup as verify_backup_files, BackupInfo,
     },
 };
 
@@ -88,6 +88,8 @@ fn parse_id(value: &str) -> Result<EntityId, CommandError> {
 pub(crate) fn vault_status(app: AppHandle) -> Result<VaultStatus, CommandError> {
     let paths =
         vault_paths(&app).map_err(|message| CommandError::new("storage_unavailable", message))?;
+    recover_interrupted_header_replacement(&paths)
+        .map_err(|message| CommandError::new("recovery_required", message))?;
     let header_exists = paths.header.exists();
     let database_exists = paths.database.exists();
     if header_exists != database_exists {

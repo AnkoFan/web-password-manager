@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Trash2 } from "lucide-react"
 
 import {
@@ -30,6 +31,7 @@ export function DeleteConfirmDialog({
   onClose,
   onConfirm,
 }: DeleteConfirmDialogProps) {
+  const [pending, setPending] = useState(false)
   const impact =
     target.type === "category"
       ? `该分类下的 ${target.affectedCount ?? 0} 个网站及其账号会一起移入回收站。`
@@ -48,14 +50,19 @@ export function DeleteConfirmDialog({
           <AlertDialogDescription>{impact} 你可以稍后从回收站恢复。</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>取消</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            onClick={() => {
-              void onConfirm()
+            disabled={pending}
+            onClick={(event) => {
+              event.preventDefault()
+              setPending(true)
+              void onConfirm().finally(() => {
+                setPending(false)
+              })
             }}
           >
-            移入回收站
+            {pending ? "正在移入…" : "移入回收站"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

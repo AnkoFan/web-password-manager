@@ -1,7 +1,7 @@
 use std::{
     fs,
     io::{Read, Seek, SeekFrom, Write},
-    process::Command,
+    process::{Command, Stdio},
 };
 
 use argon2::{Algorithm, Argon2, AssociatedData, ParamsBuilder, Version};
@@ -13,19 +13,26 @@ use rusqlite::params;
 
 use crate::{
     security::{
-        derive_kek, unwrap_database_key, wrap_database_key, VaultHeader, KDF_ITERATIONS,
-        KDF_MEMORY_KIB, KDF_PARALLELISM,
+        derive_kek, header_v2_aad, unwrap_database_key, unwrap_stored_database_key,
+        wrap_database_key, StoredVaultHeader, VaultHeader, VaultHeaderV2, VaultKdfV2,
+        VaultKeyWrapV2, ARGON2_VERSION, KDF_ITERATIONS, KDF_MEMORY_KIB, KDF_OUTPUT_LENGTH,
+        KDF_PARALLELISM, VAULT_HEADER_MAGIC,
     },
     storage::{
         create_backup, create_schema, create_vault_files, list_backups, load_header,
-        open_encrypted_database, restore_backup, unlock_vault_files, verify_backup,
-        verify_database, VaultPaths, DATABASE_FILE, HEADER_FILE,
+        open_encrypted_database, recover_interrupted_header_replacement, restore_backup,
+        unlock_vault_files, unlock_vault_files_with_failpoint, validate_migration_snapshot,
+        verify_backup, verify_database, VaultPaths, DATABASE_FILE, HEADER_FILE,
+        MIGRATION_FAIL_AFTER_ROLLBACK_RENAME, MIGRATION_FAIL_AFTER_SCHEMA,
+        MIGRATION_FAIL_AFTER_SNAPSHOT, MIGRATION_FAIL_BEFORE_HEADER_COMMIT,
     },
 };
 
 const TEST_PASSWORD: &str = "fictional-restart-password";
 const RESTART_TEST_MODE: &str = "WPM_RESTART_TEST_MODE";
 const RESTART_TEST_DIRECTORY: &str = "WPM_RESTART_TEST_DIRECTORY";
+#[cfg(windows)]
+const RESOURCE_LIMIT_TEST_MODE: &str = "WPM_RESOURCE_LIMIT_TEST_MODE";
 
 pub(crate) fn test_header() -> VaultHeader {
     VaultHeader {
@@ -49,6 +56,18 @@ fn test_paths(directory: &std::path::Path) -> VaultPaths {
     }
 }
 
+fn replace_with_legacy_header(paths: &VaultPaths, password: &str) {
+    let current = load_header(&paths.header).unwrap();
+    let database_key = unwrap_stored_database_key(password, &current).unwrap();
+    let mut legacy = test_header();
+    let nonce = [8_u8; 24];
+    let kek = derive_kek(password, &legacy).unwrap();
+    legacy.wrapped_dek_hex = hex::encode(
+        wrap_database_key(kek.as_slice(), database_key.as_slice(), &legacy, &nonce).unwrap(),
+    );
+    fs::write(&paths.header, serde_json::to_vec_pretty(&legacy).unwrap()).unwrap();
+}
+
 #[test]
 fn argon2id_key_is_stable_for_the_same_password_and_salt() {
     let header = test_header();
@@ -58,6 +77,51 @@ fn argon2id_key_is_stable_for_the_same_password_and_salt() {
 
     assert_eq!(first.as_slice(), second.as_slice());
     assert_ne!(first.as_slice(), different.as_slice());
+}
+
+#[test]
+fn v2_header_aad_matches_the_frozen_vector() {
+    let header = VaultHeaderV2 {
+        magic: VAULT_HEADER_MAGIC.into(),
+        format_version: 2,
+        vault_id: "00112233-4455-6677-8899-aabbccddeeff".into(),
+        kdf: VaultKdfV2 {
+            algorithm: "argon2id".into(),
+            version: ARGON2_VERSION,
+            salt_hex: hex::encode([7_u8; 16]),
+            memory_kib: KDF_MEMORY_KIB,
+            iterations: KDF_ITERATIONS,
+            parallelism: KDF_PARALLELISM,
+            output_length: KDF_OUTPUT_LENGTH,
+        },
+        key_wrap: VaultKeyWrapV2 {
+            algorithm: "xchacha20poly1305".into(),
+            nonce_hex: hex::encode([8_u8; 24]),
+            wrapped_dek_hex: String::new(),
+        },
+    };
+    assert_eq!(
+        hex::encode(header_v2_aad(&header).unwrap()),
+        "57504d2d5648322d414144000000000257504d5641554c5400112233445566778899aabbccddeeff0100000013070707070707070707070707070707070001000000000003000000010000002001080808080808080808080808080808080808080808080808"
+    );
+}
+
+#[test]
+fn new_vault_uses_v2_header_bound_to_database_identity() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = test_paths(temp.path());
+    let connection = create_vault_files(&paths, TEST_PASSWORD).unwrap();
+    let header = load_header(&paths.header).unwrap();
+    let StoredVaultHeader::V2(v2) = header else {
+        panic!("new vault must use a v2 header");
+    };
+    let database_id: Vec<u8> = connection
+        .query_row("SELECT id FROM vault_meta", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(
+        uuid::Uuid::parse_str(&v2.vault_id).unwrap().as_bytes(),
+        database_id.as_slice()
+    );
 }
 
 #[test]
@@ -381,11 +445,129 @@ fn restart_unlock_subprocess_helper() {
     }
 }
 
+#[cfg(windows)]
+#[test]
+fn argon2_allocation_fails_cleanly_under_a_windows_job_limit() {
+    use std::{
+        io::{BufRead, BufReader},
+        os::windows::io::AsRawHandle,
+    };
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, HANDLE},
+        System::{
+            JobObjects::{
+                AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+                SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+                JOB_OBJECT_LIMIT_PROCESS_MEMORY,
+            },
+            ProcessStatus::{
+                GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX,
+            },
+        },
+    };
+
+    struct JobHandle(HANDLE);
+    impl Drop for JobHandle {
+        fn drop(&mut self) {
+            unsafe {
+                CloseHandle(self.0);
+            }
+        }
+    }
+
+    let mut child = Command::new(std::env::current_exe().unwrap())
+        .arg("--exact")
+        .arg("tests::kdf_resource_limit_subprocess_helper")
+        .arg("--nocapture")
+        .env(RESOURCE_LIMIT_TEST_MODE, "1")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let process = child.as_raw_handle() as HANDLE;
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut preamble = String::new();
+    loop {
+        let mut line = String::new();
+        assert_ne!(
+            stdout.read_line(&mut line).unwrap(),
+            0,
+            "resource probe exited before readiness: {preamble}"
+        );
+        if line.trim() == "M3-TEST-ONLY-RESOURCE-PROBE-READY" {
+            break;
+        }
+        preamble.push_str(&line);
+    }
+
+    let mut counters = PROCESS_MEMORY_COUNTERS_EX::default();
+    counters.cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32;
+    assert_ne!(
+        unsafe {
+            GetProcessMemoryInfo(
+                process,
+                (&mut counters as *mut PROCESS_MEMORY_COUNTERS_EX)
+                    .cast::<PROCESS_MEMORY_COUNTERS>(),
+                counters.cb,
+            )
+        },
+        0
+    );
+
+    let job = JobHandle(unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) });
+    assert!(!job.0.is_null());
+    let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_PROCESS_MEMORY;
+    limits.ProcessMemoryLimit = counters.PrivateUsage + 16 * 1024 * 1024;
+    println!(
+        "M3-TEST-ONLY-RESOURCE-PROBE privateMiB={:.2} limitMiB={:.2}",
+        counters.PrivateUsage as f64 / (1024.0 * 1024.0),
+        limits.ProcessMemoryLimit as f64 / (1024.0 * 1024.0)
+    );
+    assert_ne!(
+        unsafe {
+            SetInformationJobObject(
+                job.0,
+                JobObjectExtendedLimitInformation,
+                (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            )
+        },
+        0
+    );
+    assert_ne!(unsafe { AssignProcessToJobObject(job.0, process) }, 0);
+
+    child.stdin.take().unwrap().write_all(b"1").unwrap();
+    let mut output = String::new();
+    stdout.read_to_string(&mut output).unwrap();
+    let status = child.wait().unwrap();
+    assert!(status.success(), "resource-limited child failed: {output}");
+    assert!(output.contains("M3-TEST-ONLY-RESOURCE-PROBE-CONTROLLED-ERROR"));
+}
+
+#[cfg(windows)]
+#[test]
+fn kdf_resource_limit_subprocess_helper() {
+    if std::env::var_os(RESOURCE_LIMIT_TEST_MODE).is_none() {
+        return;
+    }
+    println!("M3-TEST-ONLY-RESOURCE-PROBE-READY");
+    std::io::stdout().flush().unwrap();
+    let mut signal = [0_u8; 1];
+    std::io::stdin().read_exact(&mut signal).unwrap();
+    let error = derive_kek("M3-TEST-ONLY-RESOURCE-PASSWORD", &test_header())
+        .err()
+        .expect("the constrained Argon2 allocation must fail");
+    assert_eq!(error, "可用内存不足，无法安全派生保险库密钥");
+    println!("M3-TEST-ONLY-RESOURCE-PROBE-CONTROLLED-ERROR");
+}
+
 #[test]
 fn phase_1_vault_is_migrated_to_schema_version_2() {
     let temp = tempfile::tempdir().unwrap();
     let paths = test_paths(temp.path());
     let connection = create_vault_files(&paths, TEST_PASSWORD).unwrap();
+    replace_with_legacy_header(&paths, TEST_PASSWORD);
     connection
         .execute_batch(
             "DROP TABLE account_fields;
@@ -422,6 +604,127 @@ fn phase_1_vault_is_migrated_to_schema_version_2() {
     assert_eq!(version, 2);
     assert_eq!(vault_rows, 1);
     assert_eq!(demo_table, 0);
+    assert!(matches!(
+        load_header(&paths.header).unwrap(),
+        StoredVaultHeader::V2(_)
+    ));
+    let snapshots = fs::read_dir(temp.path().join("migration-backups"))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(snapshots.len(), 1);
+}
+
+#[test]
+fn legacy_v1_header_is_snapshotted_before_migrating_to_v2() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = test_paths(temp.path());
+    drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
+    replace_with_legacy_header(&paths, TEST_PASSWORD);
+    let original_header = fs::read(&paths.header).unwrap();
+
+    drop(unlock_vault_files(&paths, TEST_PASSWORD).unwrap());
+
+    assert!(matches!(
+        load_header(&paths.header).unwrap(),
+        StoredVaultHeader::V2(_)
+    ));
+    let snapshots = fs::read_dir(temp.path().join("migration-backups"))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(snapshots.len(), 1);
+    assert_eq!(
+        fs::read(snapshots[0].path().join(HEADER_FILE)).unwrap(),
+        original_header
+    );
+    assert!(snapshots[0].path().join("migration-manifest.json").exists());
+    validate_migration_snapshot(&snapshots[0].path()).unwrap();
+    let database = snapshots[0].path().join(DATABASE_FILE);
+    let original_length = fs::metadata(&database).unwrap().len();
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&database)
+        .unwrap()
+        .set_len(original_length - 1)
+        .unwrap();
+    assert!(validate_migration_snapshot(&snapshots[0].path()).is_err());
+}
+
+#[test]
+fn interrupted_header_replacement_restores_the_unique_rollback() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = test_paths(temp.path());
+    drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
+    let original = fs::read(&paths.header).unwrap();
+    let rollback = temp
+        .path()
+        .join("vault.header.json.rollback-00000000-0000-4000-8000-000000000001");
+    fs::rename(&paths.header, &rollback).unwrap();
+
+    recover_interrupted_header_replacement(&paths).unwrap();
+
+    assert_eq!(fs::read(&paths.header).unwrap(), original);
+    assert!(!rollback.exists());
+}
+
+#[test]
+fn migration_failpoints_preserve_a_recoverable_vault() {
+    for failpoint in [
+        MIGRATION_FAIL_AFTER_SNAPSHOT,
+        MIGRATION_FAIL_BEFORE_HEADER_COMMIT,
+        MIGRATION_FAIL_AFTER_ROLLBACK_RENAME,
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let paths = test_paths(temp.path());
+        drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
+        replace_with_legacy_header(&paths, TEST_PASSWORD);
+
+        assert!(unlock_vault_files_with_failpoint(&paths, TEST_PASSWORD, failpoint).is_err());
+        drop(unlock_vault_files(&paths, TEST_PASSWORD).unwrap());
+        assert!(matches!(
+            load_header(&paths.header).unwrap(),
+            StoredVaultHeader::V2(_)
+        ));
+    }
+}
+
+#[test]
+fn schema_commit_interruption_keeps_the_legacy_header_usable() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = test_paths(temp.path());
+    let connection = create_vault_files(&paths, TEST_PASSWORD).unwrap();
+    replace_with_legacy_header(&paths, TEST_PASSWORD);
+    connection
+        .execute_batch(
+            "DELETE FROM schema_migrations WHERE version = 2;
+             CREATE TABLE demo_fields (
+               name TEXT PRIMARY KEY NOT NULL,
+               value TEXT NOT NULL
+             );
+             INSERT INTO demo_fields(name, value) VALUES ('password', 'fictional-secret');
+             PRAGMA user_version = 1;",
+        )
+        .unwrap();
+    drop(connection);
+
+    assert!(
+        unlock_vault_files_with_failpoint(&paths, TEST_PASSWORD, MIGRATION_FAIL_AFTER_SCHEMA)
+            .is_err()
+    );
+    assert!(matches!(
+        load_header(&paths.header).unwrap(),
+        StoredVaultHeader::V1(_)
+    ));
+    let recovered = unlock_vault_files(&paths, TEST_PASSWORD).unwrap();
+    let version: i64 = recovered
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 2);
+    assert!(matches!(
+        load_header(&paths.header).unwrap(),
+        StoredVaultHeader::V2(_)
+    ));
 }
 
 #[test]
@@ -429,6 +732,7 @@ fn schema_version_1_is_migrated_to_version_2_without_prototype_data() {
     let temp = tempfile::tempdir().unwrap();
     let paths = test_paths(temp.path());
     let connection = create_vault_files(&paths, TEST_PASSWORD).unwrap();
+    replace_with_legacy_header(&paths, TEST_PASSWORD);
     connection
         .execute_batch(
             "DELETE FROM schema_migrations WHERE version = 2;
@@ -504,12 +808,15 @@ fn unlock_rejects_tampered_wrapped_database_key() {
     drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
 
     let mut header = load_header(&paths.header).unwrap();
-    let replacement = if header.wrapped_dek_hex.starts_with('0') {
+    let StoredVaultHeader::V2(v2) = &mut header else {
+        panic!("new vault must use a v2 header");
+    };
+    let replacement = if v2.key_wrap.wrapped_dek_hex.starts_with('0') {
         "1"
     } else {
         "0"
     };
-    header.wrapped_dek_hex.replace_range(0..1, replacement);
+    v2.key_wrap.wrapped_dek_hex.replace_range(0..1, replacement);
     fs::write(&paths.header, serde_json::to_vec_pretty(&header).unwrap()).unwrap();
 
     assert!(unlock_vault_files(&paths, TEST_PASSWORD).is_err());
@@ -522,7 +829,10 @@ fn unsupported_kdf_parameters_are_rejected_before_derivation() {
     drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
 
     let mut header = load_header(&paths.header).unwrap();
-    header.memory_kib = KDF_MEMORY_KIB.saturating_add(1);
+    let StoredVaultHeader::V2(v2) = &mut header else {
+        panic!("new vault must use a v2 header");
+    };
+    v2.kdf.memory_kib = KDF_MEMORY_KIB.saturating_add(1);
     fs::write(&paths.header, serde_json::to_vec_pretty(&header).unwrap()).unwrap();
 
     assert!(load_header(&paths.header).is_err());
@@ -550,6 +860,27 @@ fn oversized_header_is_rejected_before_parsing() {
     fs::write(&header, vec![b' '; 64 * 1024 + 1]).unwrap();
 
     assert!(load_header(&header).is_err());
+}
+
+#[test]
+fn v2_header_rejects_unknown_fields_and_future_versions() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = test_paths(temp.path());
+    drop(create_vault_files(&paths, TEST_PASSWORD).unwrap());
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&fs::read(&paths.header).unwrap()).unwrap();
+    value
+        .as_object_mut()
+        .unwrap()
+        .insert("unexpectedField".into(), serde_json::Value::Bool(true));
+    fs::write(&paths.header, serde_json::to_vec_pretty(&value).unwrap()).unwrap();
+    assert!(load_header(&paths.header).is_err());
+
+    value.as_object_mut().unwrap().remove("unexpectedField");
+    value["formatVersion"] = serde_json::Value::from(3);
+    fs::write(&paths.header, serde_json::to_vec_pretty(&value).unwrap()).unwrap();
+    let error = load_header(&paths.header).err().unwrap();
+    assert!(error.contains("更新版本"));
 }
 
 #[test]

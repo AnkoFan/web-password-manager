@@ -12,6 +12,8 @@ mod repositories;
 mod security;
 mod security_controls;
 mod storage;
+#[cfg(windows)]
+mod windows_lifecycle;
 
 struct VaultSession {
     connection: Option<Connection>,
@@ -61,19 +63,26 @@ pub fn run() {
                 session.settings = settings;
             }
             let monitor_app = app.handle().clone();
+            #[cfg(windows)]
+            let windows_events = windows_lifecycle::subscribe().map_err(std::io::Error::other)?;
             std::thread::spawn(move || loop {
                 std::thread::sleep(Duration::from_secs(1));
+                #[cfg(windows)]
+                let native_reason = windows_events.try_iter().last();
+                #[cfg(not(windows))]
+                let native_reason: Option<&'static str> = None;
                 let locked = {
                     let state = monitor_app.state::<VaultState>();
                     let Ok(mut session) = state.0.lock() else {
                         continue;
                     };
-                    if session.connection.is_some()
-                        && security_controls::idle_timeout_reached(
-                            session.last_activity,
-                            Instant::now(),
-                            &session.settings,
-                        )
+                    if native_reason.is_some()
+                        || (session.connection.is_some()
+                            && security_controls::idle_timeout_reached(
+                                session.last_activity,
+                                Instant::now(),
+                                &session.settings,
+                            ))
                     {
                         session.lock()
                     } else {
@@ -81,7 +90,8 @@ pub fn run() {
                     }
                 };
                 if locked {
-                    let _ = monitor_app.emit("vault-locked", "idle_timeout");
+                    let _ =
+                        monitor_app.emit("vault-locked", native_reason.unwrap_or("idle_timeout"));
                 }
             });
             if cfg!(debug_assertions) {

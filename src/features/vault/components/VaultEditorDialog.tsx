@@ -188,6 +188,7 @@ export function VaultEditorDialog({
               <Input
                 id="entity-name"
                 autoFocus
+                aria-describedby={error ? "editor-error" : undefined}
                 aria-invalid={Boolean(error)}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -340,7 +341,7 @@ export function VaultEditorDialog({
                 </div>
               </Field>
             ) : null}
-            <FieldError>{error}</FieldError>
+            <FieldError id="editor-error">{error}</FieldError>
           </FieldGroup>
           <DialogFooter className="mt-5">
             <Button type="button" variant="outline" onClick={onClose}>

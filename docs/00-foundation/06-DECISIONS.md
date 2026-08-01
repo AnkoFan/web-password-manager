@@ -26,10 +26,11 @@
 | ADR-005 | 分类、账号名称和字段标签采用范围内唯一规则 | 已接受 |
 | ADR-006 | 分类、网站和账号采用软删除回收站 | 已接受 |
 | ADR-007 | 使用随机 DEK 与主密码派生 KEK 的分层密钥设计 | 已接受 |
-| ADR-008 | 使用 Tauri 2、Rust、React 和 TypeScript | 候选 |
-| ADR-009 | 使用 SQLite + SQLCipher | 候选 |
+| ADR-008 | 使用 Tauri 2、Rust、React 和 TypeScript | 已接受 |
+| ADR-009 | 使用 SQLite + SQLCipher | 已接受 |
 | ADR-010 | 使用 Argon2id 派生 KEK | 已接受 |
-| ADR-011 | 使用 AEAD 包装 DEK | 已接受，具体算法候选 |
+| ADR-011 | 使用 XChaCha20-Poly1305 AEAD 包装 DEK | 已接受 |
+| ADR-012 | 使用安全头格式 v2 与可恢复迁移协议 | 已接受 |
 
 ## 3. ADR-001 完全本地
 
@@ -107,29 +108,23 @@
 
 ## 10. ADR-008 Tauri 技术栈
 
-候选决定：
+决定：
 
 - Tauri 2 + Rust 后端。
 - React 19 + TypeScript + Vite 前端。
 - Tailwind CSS 4 + shadcn/ui。
 
-接受条件：
-
-- Windows 原型、锁定边界和离线 NSIS 安装测试通过。
-
-备选：如 Tauri 原型失败，重新评估纯 .NET 或 Electron，不能同时维护双框架。
+接受证据：Windows 原型、锁定边界、离线 NSIS 安装和 M2.6 远程门禁已经通过。
 
 ## 11. ADR-009 SQLite + SQLCipher
 
-候选决定：
+决定：
 
 - SQLite 负责事务、关系和迁移。
 - SQLCipher 负责数据库静态加密。
 - 使用随机 DEK 原始密钥打开。
 
-接受条件：
-
-- Rust 绑定、Windows 构建、备份、恢复、篡改检测和安装打包原型通过。
+接受证据：Rust 绑定、Windows 构建、备份、恢复、篡改检测和安装打包原型已经通过。
 
 ## 12. ADR-010 Argon2id
 
@@ -146,10 +141,11 @@
 
 - 使用标准 AEAD 包装 DEK并认证关键安全头。
 
-候选：
+实现选择：
 
-- AES-256-GCM。
-- 如果 Rust 依赖审查更合适，采用 XChaCha20-Poly1305。
+- XChaCha20-Poly1305。
+- 192 位随机 nonce。
+- RustCrypto 维护实现。
 
 禁止自行实现密码算法。
 
@@ -161,6 +157,18 @@
 - [ ] 保险库目录还是单文件容器。
 - [ ] 自动锁定和剪贴板清除默认值。
 - [ ] 正式代码签名方式。
+
+## 14.1 ADR-012 安全头格式 v2
+
+决定：
+
+- 新建保险库使用带 magic、vault ID、嵌套 KDF 与密钥包装信息的安全头 v2。
+- AAD 使用独立于 JSON 序列化的固定顺序二进制规范编码。
+- KDF 参数先通过绝对资源边界，再匹配经过基准和评审的已知配置。
+- v1 只有在完整验证并建立持久迁移快照后才能单向迁移到 v2。
+- schema 迁移、v2 头暂存、头替换和启动恢复必须遵守可注入失败的提交协议。
+
+完整决定见 [ADR-012](10-ADR_VAULT_HEADER_V2.md)。
 
 ## 15. 相关文档
 

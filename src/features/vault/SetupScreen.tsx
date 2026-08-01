@@ -73,7 +73,9 @@ export function SetupScreen({ onCreate }: SetupScreenProps) {
                 <div className="password-control">
                   <Input
                     id="master-password"
+                    aria-describedby="master-password-help setup-error"
                     aria-invalid={Boolean(error)}
+                    autoFocus
                     autoComplete="new-password"
                     type={visible ? "text" : "password"}
                     value={password}
@@ -89,12 +91,16 @@ export function SetupScreen({ onCreate }: SetupScreenProps) {
                     {visible ? <EyeOff /> : <Eye />}
                   </Button>
                 </div>
-                <FieldDescription>建议使用 4 个以上无关词语组合，至少 12 个字符。</FieldDescription>
+                <FieldDescription id="master-password-help">
+                  建议使用 4 个以上无关词语组合，至少 12 个字符。
+                </FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="master-password-confirmation">再次输入</FieldLabel>
                 <Input
                   id="master-password-confirmation"
+                  aria-describedby={error ? "setup-error" : undefined}
+                  aria-invalid={Boolean(error)}
                   autoComplete="new-password"
                   type={visible ? "text" : "password"}
                   value={confirmation}
@@ -111,7 +117,7 @@ export function SetupScreen({ onCreate }: SetupScreenProps) {
                   我理解：忘记主密码后，可能无法恢复保险库数据。
                 </FieldLabel>
               </Field>
-              <FieldError>{error}</FieldError>
+              <FieldError id="setup-error">{error}</FieldError>
             </FieldGroup>
           </CardContent>
           <CardFooter>

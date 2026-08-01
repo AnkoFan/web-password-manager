@@ -16,6 +16,7 @@ import {
   VaultEditorDialog,
   type EditorState,
 } from "./components/VaultEditorDialog"
+import { shouldFocusGlobalSearch } from "./keyboard"
 
 import {
   vaultClient,
@@ -146,7 +147,10 @@ export function AppShell({ onLock }: AppShellProps) {
 
   useEffect(() => {
     function handleKeyboard(event: KeyboardEvent) {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      const modalOpen = Boolean(
+        document.querySelector('[role="dialog"], [role="alertdialog"]'),
+      )
+      if (shouldFocusGlobalSearch(event, modalOpen)) {
         event.preventDefault()
         document.getElementById("global-search")?.focus()
       }

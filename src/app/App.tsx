@@ -7,6 +7,8 @@ import { SetupScreen } from "@/features/vault/SetupScreen"
 import { UnlockScreen } from "@/features/vault/UnlockScreen"
 import { vaultClient } from "@/services/vault-client"
 
+import { lockNoticeForReason } from "./lock-notices"
+
 type SessionState = "loading" | "setup" | "locked" | "unlocked" | "recovery"
 
 export function App() {
@@ -38,17 +40,7 @@ export function App() {
     void vaultClient
       .onLocked((reason) => {
         if (!active) return
-        setLockNotice(
-          reason === "idle_timeout"
-            ? "因长时间无操作，保险库已自动锁定。"
-            : reason === "focus_lost"
-              ? "因切换窗口、系统锁屏或休眠，保险库已自动锁定。"
-              : reason === "backup_created"
-                ? "加密备份已创建，保险库已安全锁定。"
-                : reason === "backup_failed"
-                  ? "备份未完成，保险库仍已安全锁定。"
-                  : "",
-        )
+        setLockNotice(lockNoticeForReason(reason))
         setSession("locked")
       })
       .then((cleanup) => {
@@ -88,7 +80,11 @@ export function App() {
   return (
     <TooltipProvider>
       {session === "loading" ? (
-        <main className="unlock-shell" aria-label="正在检查本地保险库">
+        <main
+          className="unlock-shell"
+          aria-label="正在检查本地保险库"
+          aria-live="polite"
+        >
           <p className="text-sm text-muted-foreground">正在检查本地保险库…</p>
         </main>
       ) : session === "recovery" ? (

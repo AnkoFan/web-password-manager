@@ -123,7 +123,6 @@
     }
   body {
     @apply bg-background text-foreground antialiased;
-    min-width: 900px;
     min-height: 640px;
     margin: 0;
     }
@@ -293,7 +292,7 @@
   }
 
   .workspace {
-    @apply grid min-w-0 grid-rows-[68px_minmax(0,1fr)];
+    @apply grid min-h-0 min-w-0 grid-rows-[68px_minmax(0,1fr)] overflow-hidden;
   }
 
   .top-bar {
@@ -715,15 +714,24 @@
 
 @media (max-width: 1120px) {
   .vault-app {
-    grid-template-columns: 210px minmax(0, 1fr);
+    grid-template-columns: 190px minmax(0, 1fr);
   }
 
   .content-grid {
-    grid-template-columns: 340px minmax(430px, 1fr);
+    grid-template-columns: minmax(300px, 38%) minmax(0, 1fr);
+  }
+
+  .top-bar {
+    gap: 1rem;
+    padding-inline: 1rem;
+  }
+
+  .breadcrumbs {
+    flex: 1;
   }
 
   .search-control {
-    width: 280px;
+    width: 220px;
   }
 
   .account-detail {
@@ -736,5 +744,346 @@
 
   .detail-actions button svg {
     margin: 0;
+  }
+}
+
+/*
+ * Tauri keeps the physical desktop window at 900 x 640 or larger. These
+ * breakpoints deliberately target the smaller CSS viewport produced by
+ * Windows text/display scaling and WebView zoom, so 150% and 200% users get
+ * reflow instead of a page-wide horizontal scrollbar.
+ */
+@media (max-width: 899px) {
+  body {
+    min-height: 100vh;
+  }
+
+  .auth-shell {
+    min-height: 100vh;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-intro {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem;
+  }
+
+  .auth-intro h1 {
+    margin-top: 0.5rem;
+    font-size: 1.75rem;
+  }
+
+  .auth-lead {
+    margin-top: 0.75rem;
+  }
+
+  .security-points {
+    margin-top: 1rem;
+    gap: 0.5rem;
+  }
+
+  .auth-card {
+    width: min(470px, calc(100% - 2rem));
+    margin-block: 1rem;
+  }
+
+  .unlock-shell {
+    min-height: 100vh;
+    align-items: flex-start;
+    padding: 1rem;
+    overflow-y: auto;
+  }
+
+  .unlock-layout {
+    width: min(100%, 430px);
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .unlock-card,
+  .restore-card,
+  .recovery-state {
+    width: 100%;
+  }
+
+  .vault-app {
+    height: 100vh;
+    min-height: 0;
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .primary-nav {
+    padding: 0.5rem;
+  }
+
+  .nav-brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .nav-brand > div:last-child {
+    display: none;
+  }
+
+  .nav-items {
+    margin-top: 1rem;
+  }
+
+  .nav-item,
+  .primary-nav > button:last-child {
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+    font-size: 0;
+  }
+
+  .nav-item svg,
+  .primary-nav > button:last-child svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+  }
+
+  .workspace {
+    grid-template-rows: 56px minmax(0, 1fr);
+  }
+
+  .top-bar {
+    gap: 0.5rem;
+    padding-inline: 0.75rem;
+  }
+
+  .breadcrumbs {
+    max-width: 34%;
+  }
+
+  .top-actions {
+    min-width: 0;
+    flex: 1;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .search-control {
+    width: min(100%, 280px);
+  }
+
+  .top-actions > button {
+    width: 2.25rem;
+    flex: none;
+    padding-inline: 0;
+    font-size: 0;
+  }
+
+  .top-actions > button svg {
+    margin: 0;
+  }
+
+  .content-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(180px, 42%) minmax(0, 1fr);
+  }
+
+  .account-browser {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+  }
+
+  .account-detail {
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+
+  .field-table {
+    margin-top: 1.5rem;
+  }
+
+  .search-results,
+  .trash-view,
+  .settings-view {
+    padding: 1.5rem;
+  }
+
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .backup-card {
+    grid-column: auto;
+  }
+
+  .field-editor-row {
+    grid-template-columns: minmax(0, 1fr) minmax(110px, 0.7fr) 32px;
+  }
+
+  .field-editor-row > :nth-child(4) {
+    grid-column: 1 / 3;
+  }
+
+  .field-editor-row > :nth-child(5) {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 599px) {
+  .auth-intro {
+    display: none;
+  }
+
+  .auth-card {
+    align-self: start;
+  }
+
+  .vault-app {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .primary-nav {
+    padding-inline: 0.375rem;
+  }
+
+  .breadcrumbs {
+    max-width: 28%;
+  }
+
+  .breadcrumb-part:not(:last-child),
+  .breadcrumb-part:last-child > svg {
+    display: none;
+  }
+
+  .search-control kbd {
+    display: none;
+  }
+
+  .search-control input {
+    padding-right: 0.75rem;
+  }
+
+  .content-grid {
+    grid-template-rows: minmax(150px, 44%) minmax(0, 1fr);
+  }
+
+  .website-header {
+    gap: 0.75rem;
+    padding-bottom: 1rem;
+  }
+
+  .detail-header {
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .detail-title {
+    gap: 0.75rem;
+  }
+
+  .detail-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .detail-title h2 {
+    font-size: 1.25rem;
+  }
+
+  .detail-website-actions {
+    margin-top: 1rem;
+  }
+
+  .secret-row {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .secret-row .field-label {
+    grid-column: 1 / -1;
+  }
+
+  .field-actions {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .search-results,
+  .trash-view,
+  .settings-view {
+    padding: 1rem;
+  }
+
+  .search-results > header,
+  .trash-view > header {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .backup-list > div,
+  .search-result-list > button,
+  .trash-list article {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .backup-list > div > :last-child,
+  .search-result-list > button > :last-child,
+  .trash-list article > :last-child {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  .field-editor-row {
+    grid-template-columns: minmax(0, 1fr) 32px;
+  }
+
+  .field-editor-row > :nth-child(2),
+  .field-editor-row > :nth-child(3),
+  .field-editor-row > :nth-child(4) {
+    grid-column: 1 / -1;
+  }
+
+  .field-editor-row > :nth-child(5) {
+    grid-column: 1;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .brand-mark,
+  .nav-item-active,
+  .entity-item-active,
+  .account-item-active {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .nav-item-active,
+  .entity-item-active,
+  .account-item-active {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  :disabled,
+  [aria-disabled="true"] {
+    border-color: GrayText;
+    color: GrayText;
+  }
+
+  [aria-invalid="true"] {
+    outline: 2px solid CanvasText;
+    outline-offset: 1px;
+  }
+
+  .field-value.masked,
+  .lock-notice {
+    color: CanvasText;
   }
 }
