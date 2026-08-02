@@ -76,6 +76,13 @@ describe("VaultTable account grouping", () => {
     ])
 
     expect(screen.getAllByRole("button", { name: "添加账号" })).toHaveLength(1)
+    const websiteTitleRow = screen.getByText("虚构网站").closest(".vault-website-title-row")
+    const editWebsite = screen.getByRole("button", { name: "编辑网站 虚构网站" })
+    const deleteWebsite = screen.getByRole("button", { name: "删除网站 虚构网站" })
+    expect(editWebsite.closest(".vault-website-title-row")).toBe(websiteTitleRow)
+    expect(deleteWebsite.closest(".vault-website-title-row")).toBe(websiteTitleRow)
+    expect(editWebsite).toHaveAttribute("data-size", "icon-xs")
+    expect(deleteWebsite).toHaveAttribute("data-size", "icon-xs")
     const secondRow = screen.getByDisplayValue("虚构账号二").closest("tr")
     expect(secondRow).toHaveAttribute("hidden")
 

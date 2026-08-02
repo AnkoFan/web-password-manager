@@ -224,7 +224,32 @@ function InlineAccountRow({
               <Globe2 aria-hidden="true" />
             </span>
             <span className="vault-website-meta">
-              <strong>{website.name}</strong>
+              <span className="vault-website-title-row">
+                <strong title={website.name}>{website.name}</strong>
+                <span className="vault-website-title-actions">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`编辑网站 ${website.name}`}
+                    title={`编辑网站 ${website.name}`}
+                    onClick={() => onEditWebsite(website)}
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    className="vault-website-delete-button"
+                    aria-label={`删除网站 ${website.name}`}
+                    title={`删除网站 ${website.name}`}
+                    onClick={() => onDeleteWebsite(website)}
+                  >
+                    <Trash2 />
+                  </Button>
+                </span>
+              </span>
               <small>{website.primaryUrl ?? "未设置网址"}</small>
               <span className="vault-site-account-controls">
                 <button type="button" className="vault-site-add-account" onClick={onAddRow}>
@@ -245,14 +270,6 @@ function InlineAccountRow({
                 ) : null}
               </span>
             </span>
-            <div className="vault-inline-actions website-row-actions">
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={`编辑网站 ${website.name}`} onClick={() => onEditWebsite(website)}>
-                <Pencil />
-              </Button>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={`删除网站 ${website.name}`} onClick={() => onDeleteWebsite(website)}>
-                <Trash2 />
-              </Button>
-            </div>
           </div>
         ) : null}
       </td>

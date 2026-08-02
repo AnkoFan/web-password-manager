@@ -355,23 +355,23 @@
   }
 
   .vault-table th:nth-child(1) {
-    width: 21%;
+    width: 25%;
   }
 
   .vault-table th:nth-child(2) {
-    width: 15%;
+    width: 14%;
   }
 
   .vault-table th:nth-child(3) {
-    width: 19%;
-  }
-
-  .vault-table th:nth-child(4) {
     width: 18%;
   }
 
+  .vault-table th:nth-child(4) {
+    width: 17%;
+  }
+
   .vault-table th:nth-child(5) {
-    width: 27%;
+    width: 26%;
   }
 
   .vault-table td {
@@ -400,11 +400,31 @@
   }
 
   .vault-website-cell {
-    @apply relative gap-3;
+    @apply gap-2.5;
   }
 
   .vault-website-meta {
     @apply flex min-w-0 flex-1 flex-col gap-0.5;
+  }
+
+  .vault-website-title-row {
+    @apply flex min-w-0 items-center gap-0.5;
+  }
+
+  .vault-website-title-row strong {
+    @apply min-w-0 flex-1;
+  }
+
+  .vault-website-title-actions {
+    @apply flex shrink-0 items-center gap-0.5;
+  }
+
+  .vault-website-title-actions button {
+    @apply text-muted-foreground;
+  }
+
+  .vault-website-title-actions .vault-website-delete-button {
+    @apply hover:bg-destructive/10 hover:text-destructive;
   }
 
   .vault-site-add-account {
@@ -459,15 +479,6 @@
 
   .vault-row-icon-muted {
     @apply bg-muted text-muted-foreground;
-  }
-
-  .website-row-actions {
-    @apply absolute right-0 shrink-0 rounded-md border bg-card p-0.5 opacity-0 shadow-sm transition-opacity;
-  }
-
-  .vault-website-cell:hover .website-row-actions,
-  .website-row-actions:focus-within {
-    @apply opacity-100;
   }
 
   .vault-same-site,
