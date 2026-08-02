@@ -1,10 +1,10 @@
 # 发布检查清单
 
-> 状态：`0.2.0-beta.1` 候选收口中
+> 状态：全部门禁通过；`0.2.0-beta.1` 内部 beta 已冻结
 
 ## 自动化
 
-- [ ] GitHub Frontend quality gate 通过。
+- [x] GitHub Frontend quality gate 通过（PR #2 / CI `30743074020`）。
 - [x] Windows Rust/SQLCipher/DPAPI 本地测试通过（24/24）。
 - [x] RustSec 已审计 529 个锁定依赖：0 个漏洞、17 个已记录的未维护/不健全警告；npm audit 通过（0 个漏洞）。
 - [x] CSP、权限、架构、发布配置与生产包扫描在候选版本上通过。
