@@ -46,6 +46,9 @@ export function AppShell() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
+  const [selectedWebsiteIds, setSelectedWebsiteIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [revealed, setRevealed] = useState<Record<string, string>>({})
   const [query, setQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
@@ -102,6 +105,10 @@ export function AppShell() {
     setCategories(nextCategories)
     setWebsites(nextWebsites)
     setTrashItems(nextTrash)
+    setSelectedWebsiteIds((current) => {
+      const activeIds = new Set(nextWebsites.map((website) => website.id))
+      return new Set([...current].filter((id) => activeIds.has(id)))
+    })
 
     const categoryId =
       preferred.categoryId === null
@@ -207,6 +214,7 @@ export function AppShell() {
   async function selectCategory(categoryId: string) {
     setView("vault")
     setQuery("")
+    setSelectedWebsiteIds(new Set())
     try {
       await refresh({ categoryId, websiteId: null, accountId: null })
     } catch (error) {
@@ -254,6 +262,11 @@ export function AppShell() {
         await vaultClient.deleteCategory(deleteTarget.id)
       } else if (deleteTarget.type === "website") {
         await vaultClient.deleteWebsite(deleteTarget.id)
+      } else if (deleteTarget.type === "website-batch") {
+        for (const websiteId of deleteTarget.ids) {
+          await vaultClient.deleteWebsite(websiteId)
+        }
+        setSelectedWebsiteIds(new Set())
       } else {
         await vaultClient.deleteAccount(deleteTarget.id)
       }
@@ -369,6 +382,7 @@ export function AppShell() {
             category={category}
             entries={entries}
             selectedAccountId={selectedAccountId}
+            selectedWebsiteIds={selectedWebsiteIds}
             revealed={revealed}
             onCreateWebsite={() =>
               selectedCategoryId
@@ -389,6 +403,16 @@ export function AppShell() {
                 name: selectedWebsite.name,
                 affectedCount: entries.filter(
                   (entry) => entry.website.id === selectedWebsite.id && entry.account,
+                ).length,
+              })
+            }
+            onWebsiteSelectionChange={setSelectedWebsiteIds}
+            onDeleteSelectedWebsites={(websiteIds) =>
+              openDeleteDialog({
+                type: "website-batch",
+                ids: websiteIds,
+                affectedCount: entries.filter(
+                  (entry) => websiteIds.includes(entry.website.id) && entry.account,
                 ).length,
               })
             }

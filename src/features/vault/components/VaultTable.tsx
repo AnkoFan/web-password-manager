@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type {
@@ -33,10 +34,13 @@ type VaultTableProps = {
   category: Category | null
   entries: VaultEntry[]
   selectedAccountId: string | null
+  selectedWebsiteIds: Set<string>
   revealed: Record<string, string>
   onCreateWebsite: () => void
   onEditWebsite: (website: Website) => void
   onDeleteWebsite: (website: Website) => void
+  onWebsiteSelectionChange: (websiteIds: Set<string>) => void
+  onDeleteSelectedWebsites: (websiteIds: string[]) => void
   onSaveAccount: (draft: AccountDraft) => Promise<void>
   onDeleteAccount: (account: AccountDetail) => void
   onOpenWebsite: (website: Website) => Promise<void>
@@ -85,9 +89,11 @@ type InlineAccountRowProps = Pick<
   account: AccountDetail | null
   firstWebsiteRow: boolean
   selected: boolean
+  websiteSelected: boolean
   onAddRow: () => void
   onEditWebsite: (website: Website) => void
   onDeleteWebsite: (website: Website) => void
+  onWebsiteSelectedChange: (websiteId: string, selected: boolean) => void
   onRemoveDraft?: () => void
 }
 
@@ -96,6 +102,7 @@ function InlineAccountRow({
   account,
   firstWebsiteRow,
   selected,
+  websiteSelected,
   revealed,
   onSaveAccount,
   onDeleteAccount,
@@ -105,6 +112,7 @@ function InlineAccountRow({
   onAddRow,
   onEditWebsite,
   onDeleteWebsite,
+  onWebsiteSelectedChange,
   onRemoveDraft,
 }: InlineAccountRowProps) {
   const usernameField = systemField(account, "username")
@@ -191,14 +199,21 @@ function InlineAccountRow({
   }
 
   return (
-    <tr className={cn(selected && "vault-row-selected", error && "vault-row-error")}>
+    <tr className={cn((selected || websiteSelected) && "vault-row-selected", error && "vault-row-error")}>
       <td data-label="网站">
         {firstWebsiteRow ? (
           <div className="vault-website-cell">
+            <Checkbox
+              checked={websiteSelected}
+              aria-label={`选择网站 ${website.name}`}
+              onCheckedChange={(checked) =>
+                onWebsiteSelectedChange(website.id, checked === true)
+              }
+            />
             <span className="vault-row-icon">
               <Globe2 aria-hidden="true" />
             </span>
-            <span>
+            <span className="vault-website-meta">
               <strong>{website.name}</strong>
               <small>{website.primaryUrl ?? "未设置网址"}</small>
               <button type="button" className="vault-site-add-account" onClick={onAddRow}>
@@ -298,10 +313,13 @@ export function VaultTable({
   category,
   entries,
   selectedAccountId,
+  selectedWebsiteIds,
   revealed,
   onCreateWebsite,
   onEditWebsite,
   onDeleteWebsite,
+  onWebsiteSelectionChange,
+  onDeleteSelectedWebsites,
   onSaveAccount,
   onDeleteAccount,
   onOpenWebsite,
@@ -333,6 +351,13 @@ export function VaultTable({
     }))
   }
 
+  function setWebsiteSelected(websiteId: string, selected: boolean) {
+    const next = new Set(selectedWebsiteIds)
+    if (selected) next.add(websiteId)
+    else next.delete(websiteId)
+    onWebsiteSelectionChange(next)
+  }
+
   if (!category) {
     return (
       <section className="vault-table-empty" aria-label="保险库内容">
@@ -344,6 +369,9 @@ export function VaultTable({
   }
 
   const accountCount = entries.filter((entry) => entry.account).length
+  const selectedCount = groups.filter(({ website }) => selectedWebsiteIds.has(website.id)).length
+  const allWebsitesSelected = groups.length > 0 && selectedCount === groups.length
+  const someWebsitesSelected = selectedCount > 0 && !allWebsitesSelected
 
   return (
     <section className="vault-table-view" aria-label={`${category.name}中的账号`}>
@@ -353,9 +381,26 @@ export function VaultTable({
           <h1>{category.name}</h1>
           <span>{accountCount} 个账号</span>
         </div>
-        <Button type="button" onClick={onCreateWebsite}>
-          <Plus data-icon="inline-start" /> 添加网站
-        </Button>
+        <div className="vault-table-toolbar-actions">
+          {selectedCount > 0 ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() =>
+                onDeleteSelectedWebsites(
+                  groups
+                    .map(({ website }) => website.id)
+                    .filter((websiteId) => selectedWebsiteIds.has(websiteId)),
+                )
+              }
+            >
+              <Trash2 data-icon="inline-start" /> 删除选中（{selectedCount}）
+            </Button>
+          ) : null}
+          <Button type="button" onClick={onCreateWebsite}>
+            <Plus data-icon="inline-start" /> 添加网站
+          </Button>
+        </div>
       </header>
 
       {entries.length === 0 ? (
@@ -372,7 +417,22 @@ export function VaultTable({
           <table className="vault-table">
             <thead>
               <tr>
-                <th scope="col">网站</th>
+                <th scope="col">
+                  <div className="vault-select-all">
+                    <Checkbox
+                      checked={allWebsitesSelected ? true : someWebsitesSelected ? "indeterminate" : false}
+                      aria-label="选择当前分类中的全部网站"
+                      onCheckedChange={(checked) =>
+                        onWebsiteSelectionChange(
+                          checked === true
+                            ? new Set(groups.map(({ website }) => website.id))
+                            : new Set(),
+                        )
+                      }
+                    />
+                    <span>网站</span>
+                  </div>
+                </th>
                 <th scope="col">名称</th>
                 <th scope="col">账号</th>
                 <th scope="col">密码</th>
@@ -394,6 +454,7 @@ export function VaultTable({
                     account={row.account}
                     firstWebsiteRow={index === 0}
                     selected={row.account?.id === selectedAccountId}
+                    websiteSelected={selectedWebsiteIds.has(website.id)}
                     revealed={revealed}
                     onSaveAccount={onSaveAccount}
                     onDeleteAccount={onDeleteAccount}
@@ -403,6 +464,7 @@ export function VaultTable({
                     onAddRow={() => addDraftRow(website.id)}
                     onEditWebsite={onEditWebsite}
                     onDeleteWebsite={onDeleteWebsite}
+                    onWebsiteSelectedChange={setWebsiteSelected}
                     onRemoveDraft={row.removable ? () => removeDraftRow(website.id, row.key) : undefined}
                   />
                 ))

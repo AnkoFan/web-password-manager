@@ -324,6 +324,14 @@
     @apply mt-1 block text-sm text-muted-foreground;
   }
 
+  .vault-table-toolbar-actions {
+    @apply flex shrink-0 items-center gap-2;
+  }
+
+  .vault-table-toolbar-actions span {
+    @apply m-0 inline text-inherit;
+  }
+
   .vault-table-frame {
     @apply min-h-0 flex-1 overflow-auto rounded-t-xl border border-b-0 bg-card shadow-xs;
   }
@@ -334,6 +342,14 @@
 
   .vault-table th {
     @apply sticky top-0 z-10 h-11 border-b bg-muted px-5 text-xs font-semibold tracking-[0.04em] text-muted-foreground;
+  }
+
+  .vault-select-all {
+    @apply flex items-center gap-2.5;
+  }
+
+  .vault-select-all span {
+    @apply text-xs font-semibold tracking-[0.04em] text-muted-foreground;
   }
 
   .vault-table th:nth-child(1) {
@@ -385,7 +401,7 @@
     @apply relative gap-3;
   }
 
-  .vault-website-cell > span:nth-child(2) {
+  .vault-website-meta {
     @apply flex min-w-0 flex-1 flex-col gap-0.5;
   }
 
@@ -1163,7 +1179,7 @@
     align-items: flex-start;
   }
 
-  .vault-table-toolbar > button {
+  .vault-table-toolbar-actions button {
     width: 2.5rem;
     flex: none;
     overflow: hidden;
@@ -1171,7 +1187,7 @@
     font-size: 0 !important;
   }
 
-  .vault-table-toolbar > button svg {
+  .vault-table-toolbar-actions button svg {
     margin: 0;
   }
 
