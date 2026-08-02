@@ -12,6 +12,7 @@ import {
   type Website,
   type WebsiteDraft,
 } from "./vault-contract"
+import { sortVaultNames } from "./vault-order"
 
 type StoredField = Omit<AccountField, "value"> & { value: string }
 type StoredAccount = Omit<AccountSummary, "summary"> & {
@@ -90,7 +91,7 @@ export function status() {
 }
 
 export function listCategories(): Category[] {
-  return categories.filter((category) => !category.deletedGroupId)
+  return sortVaultNames(categories.filter((category) => !category.deletedGroupId))
 }
 
 export function createCategory(name: string): Category {
@@ -142,11 +143,13 @@ export function deleteCategory(categoryId: string) {
 }
 
 export function listWebsites(categoryId?: string): Website[] {
-  return websites.filter(
-    (website) =>
-      !website.deletedGroupId &&
-      activeCategory(website.categoryId) &&
-      (!categoryId || website.categoryId === categoryId),
+  return sortVaultNames(
+    websites.filter(
+      (website) =>
+        !website.deletedGroupId &&
+        activeCategory(website.categoryId) &&
+        (!categoryId || website.categoryId === categoryId),
+    ),
   )
 }
 
@@ -194,8 +197,11 @@ export function deleteWebsite(websiteId: string) {
 
 export function listAccounts(websiteId: string): AccountSummary[] {
   if (!activeWebsite(websiteId)) return []
-  return accounts
-    .filter((account) => account.websiteId === websiteId && !account.deletedGroupId)
+  return sortVaultNames(
+    accounts
+      .filter((account) => account.websiteId === websiteId && !account.deletedGroupId)
+      .map((account) => ({ ...account, name: account.displayName })),
+  )
     .map((account) => ({
       id: account.id,
       websiteId: account.websiteId,

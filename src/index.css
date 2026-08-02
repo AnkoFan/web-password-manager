@@ -378,6 +378,10 @@
     @apply h-[92px] border-b px-5 align-middle text-sm last:border-b-0;
   }
 
+  .vault-table .vault-filter-empty {
+    @apply h-36 text-center text-muted-foreground;
+  }
+
   .vault-table tbody tr:last-child td {
     @apply border-b-0;
   }

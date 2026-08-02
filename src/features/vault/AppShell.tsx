@@ -26,6 +26,7 @@ import {
   type Website,
   type WebsiteDraft,
 } from "@/services/vault-client"
+import { sortVaultNames } from "@/services/vault-order"
 
 type PreferredSelection = {
   categoryId?: string | null
@@ -102,24 +103,26 @@ export function AppShell() {
       vaultClient.listWebsites(),
       vaultClient.listTrash(),
     ])
-    setCategories(nextCategories)
-    setWebsites(nextWebsites)
+    const sortedCategories = sortVaultNames(nextCategories)
+    const sortedWebsites = sortVaultNames(nextWebsites)
+    setCategories(sortedCategories)
+    setWebsites(sortedWebsites)
     setTrashItems(nextTrash)
     setSelectedWebsiteIds((current) => {
-      const activeIds = new Set(nextWebsites.map((website) => website.id))
+      const activeIds = new Set(sortedWebsites.map((website) => website.id))
       return new Set([...current].filter((id) => activeIds.has(id)))
     })
 
     const categoryId =
       preferred.categoryId === null
         ? null
-        : nextCategories.some(
+        : sortedCategories.some(
               (category) =>
                 category.id === (preferred.categoryId ?? selectedCategoryId),
             )
           ? (preferred.categoryId ?? selectedCategoryId)
-          : (nextCategories[0]?.id ?? null)
-    const categoryWebsites = nextWebsites.filter((website) => website.categoryId === categoryId)
+          : (sortedCategories[0]?.id ?? null)
+    const categoryWebsites = sortedWebsites.filter((website) => website.categoryId === categoryId)
     const nextEntries = (
       await Promise.all(
         categoryWebsites.map(async (website) => {
@@ -128,7 +131,9 @@ export function AppShell() {
           const details = await Promise.all(
             summaries.map((summary) => vaultClient.getAccount(summary.id)),
           )
-          return details.map((account) => ({ website, account }))
+          return sortVaultNames(
+            details.map((account) => ({ ...account, name: account.displayName })),
+          ).map((account) => ({ website, account }))
         }),
       )
     ).flat()
@@ -190,7 +195,7 @@ export function AppShell() {
 
   useEffect(() => {
     const trimmed = query.trim()
-    if (!trimmed) {
+    if (!trimmed || view === "vault") {
       setSearchResults([])
       return
     }
@@ -209,7 +214,7 @@ export function AppShell() {
       active = false
       window.clearTimeout(timer)
     }
-  }, [query])
+  }, [query, view])
 
   async function selectCategory(categoryId: string) {
     setView("vault")
@@ -363,11 +368,15 @@ export function AppShell() {
       <section className="workspace">
         <TopBar
           query={query}
-          onQueryChange={setQuery}
+          onQueryChange={(nextQuery) => {
+            setQuery(nextQuery)
+            if (view === "vault") setSelectedWebsiteIds(new Set())
+          }}
+          filterCurrentCategory={view === "vault"}
         />
         {loading ? (
           <div className="workspace-loading">正在读取保险库…</div>
-        ) : query.trim() ? (
+        ) : query.trim() && view !== "vault" ? (
           <SearchResults
             query={query.trim()}
             results={searchResults}
@@ -381,6 +390,7 @@ export function AppShell() {
           <VaultTable
             category={category}
             entries={entries}
+            filterQuery={query}
             selectedAccountId={selectedAccountId}
             selectedWebsiteIds={selectedWebsiteIds}
             revealed={revealed}

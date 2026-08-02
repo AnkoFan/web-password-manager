@@ -4,7 +4,11 @@ import "@testing-library/jest-dom/vitest"
 
 import type { AccountDetail, Website } from "@/services/vault-client"
 
-import { VaultTable, type VaultEntry } from "./VaultTable"
+import {
+  accountMatchesSafeFilter,
+  VaultTable,
+  type VaultEntry,
+} from "./VaultTable"
 
 afterEach(() => cleanup())
 
@@ -44,11 +48,12 @@ function account(id: string, displayName: string): AccountDetail {
   }
 }
 
-function renderTable(entries: VaultEntry[]) {
-  render(
+function table(entries: VaultEntry[], filterQuery = "") {
+  return (
     <VaultTable
       category={{ id: website.categoryId, name: "虚构分类", sortOrder: 0 }}
       entries={entries}
+      filterQuery={filterQuery}
       selectedAccountId={null}
       selectedWebsiteIds={new Set()}
       revealed={{}}
@@ -62,8 +67,12 @@ function renderTable(entries: VaultEntry[]) {
       onOpenWebsite={vi.fn().mockResolvedValue(undefined)}
       onToggleReveal={vi.fn().mockResolvedValue(undefined)}
       onCopyField={vi.fn().mockResolvedValue(undefined)}
-    />,
+    />
   )
+}
+
+function renderTable(entries: VaultEntry[], filterQuery = "") {
+  return render(table(entries, filterQuery))
 }
 
 describe("VaultTable account grouping", () => {
@@ -93,5 +102,51 @@ describe("VaultTable account grouping", () => {
       "aria-expanded",
       "true",
     )
+  })
+
+  it("filters only by website, account name, username, or email", () => {
+    const firstAccount = account("TEST-ONLY-ACCOUNT-1", "虚构账号一")
+    const secondAccount = account("TEST-ONLY-ACCOUNT-2", "虚构账号二")
+    secondAccount.fields.push({
+      id: "TEST-ONLY-SENSITIVE-NOTE",
+      systemRole: "note",
+      label: "敏感备注",
+      fieldType: "text",
+      value: "TEST-ONLY-HIDDEN-NEEDLE",
+      isSensitive: true,
+      sortOrder: 2,
+    })
+
+    expect(accountMatchesSafeFilter(secondAccount, "TEST-ONLY-ACCOUNT-2@example.test")).toBe(true)
+    expect(accountMatchesSafeFilter(secondAccount, "TEST-ONLY-HIDDEN-NEEDLE")).toBe(false)
+
+    renderTable(
+      [
+        { website, account: firstAccount },
+        { website, account: secondAccount },
+      ],
+      "TEST-ONLY-ACCOUNT-2@example.test",
+    )
+
+    expect(screen.getByDisplayValue("虚构账号一").closest("tr")).toHaveAttribute("hidden")
+    const matchingRow = screen.getByDisplayValue("虚构账号二").closest("tr")
+    expect(matchingRow).not.toHaveAttribute("hidden")
+    expect(matchingRow).toHaveTextContent("虚构网站")
+  })
+
+  it("keeps an unsaved account draft mounted while the filter changes", () => {
+    const firstAccount = account("TEST-ONLY-ACCOUNT-1", "虚构账号一")
+    const entries = [{ website, account: firstAccount }]
+    const { rerender } = renderTable(entries)
+
+    fireEvent.click(screen.getByRole("button", { name: "添加账号" }))
+    const draftName = screen.getAllByLabelText("虚构网站 的账号名称").at(-1)!
+    fireEvent.change(draftName, { target: { value: "仅用于测试的草稿" } })
+
+    rerender(table(entries, "不存在的筛选值"))
+    expect(draftName.closest("tr")).toHaveAttribute("hidden")
+    rerender(table(entries))
+
+    expect(screen.getByDisplayValue("仅用于测试的草稿")).toBeInTheDocument()
   })
 })

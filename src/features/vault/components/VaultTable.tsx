@@ -26,6 +26,7 @@ import type {
   Category,
   Website,
 } from "@/services/vault-client"
+import { vaultTextKey } from "@/services/vault-order"
 
 export type VaultEntry = {
   website: Website
@@ -35,6 +36,7 @@ export type VaultEntry = {
 type VaultTableProps = {
   category: Category | null
   entries: VaultEntry[]
+  filterQuery?: string
   selectedAccountId: string | null
   selectedWebsiteIds: Set<string>
   revealed: Record<string, string>
@@ -53,6 +55,18 @@ type VaultTableProps = {
 type WebsiteGroup = {
   website: Website
   accounts: AccountDetail[]
+}
+
+export function accountMatchesSafeFilter(account: AccountDetail, query: string) {
+  const queryKey = vaultTextKey(query)
+  if (!queryKey) return true
+  if (vaultTextKey(account.displayName).includes(queryKey)) return true
+  return account.fields.some(
+    (field) =>
+      !field.isSensitive &&
+      (field.systemRole === "username" || field.systemRole === "email") &&
+      vaultTextKey(field.value ?? "").includes(queryKey),
+  )
 }
 
 function systemField(account: AccountDetail | null, role: "username" | "password") {
@@ -350,6 +364,7 @@ function InlineAccountRow({
 export function VaultTable({
   category,
   entries,
+  filterQuery = "",
   selectedAccountId,
   selectedWebsiteIds,
   revealed,
@@ -366,6 +381,7 @@ export function VaultTable({
 }: VaultTableProps) {
   const [draftRows, setDraftRows] = useState<Record<string, string[]>>({})
   const [expandedWebsites, setExpandedWebsites] = useState<Set<string>>(() => new Set())
+  const filterKey = vaultTextKey(filterQuery)
   const groups = useMemo(() => {
     const grouped = new Map<string, WebsiteGroup>()
     for (const entry of entries) {
@@ -436,8 +452,19 @@ export function VaultTable({
   }
 
   const accountCount = entries.filter((entry) => entry.account).length
-  const selectedCount = groups.filter(({ website }) => selectedWebsiteIds.has(website.id)).length
-  const allWebsitesSelected = groups.length > 0 && selectedCount === groups.length
+  const visibleWebsiteIds = new Set(
+    groups
+      .filter(
+        ({ website, accounts }) =>
+          !filterKey ||
+          vaultTextKey(website.name).includes(filterKey) ||
+          accounts.some((account) => accountMatchesSafeFilter(account, filterKey)),
+      )
+      .map(({ website }) => website.id),
+  )
+  const visibleWebsiteCount = visibleWebsiteIds.size
+  const selectedCount = [...visibleWebsiteIds].filter((id) => selectedWebsiteIds.has(id)).length
+  const allWebsitesSelected = visibleWebsiteCount > 0 && selectedCount === visibleWebsiteCount
   const someWebsitesSelected = selectedCount > 0 && !allWebsitesSelected
 
   return (
@@ -457,7 +484,10 @@ export function VaultTable({
                 onDeleteSelectedWebsites(
                   groups
                     .map(({ website }) => website.id)
-                    .filter((websiteId) => selectedWebsiteIds.has(websiteId)),
+                    .filter(
+                      (websiteId) =>
+                        visibleWebsiteIds.has(websiteId) && selectedWebsiteIds.has(websiteId),
+                    ),
                 )
               }
             >
@@ -492,7 +522,7 @@ export function VaultTable({
                       onCheckedChange={(checked) =>
                         onWebsiteSelectionChange(
                           checked === true
-                            ? new Set(groups.map(({ website }) => website.id))
+                            ? new Set(visibleWebsiteIds)
                             : new Set(),
                         )
                       }
@@ -508,6 +538,8 @@ export function VaultTable({
             </thead>
             <tbody>
               {groups.flatMap(({ website, accounts }) => {
+                const websiteMatches = vaultTextKey(website.name).includes(filterKey)
+                const groupVisible = visibleWebsiteIds.has(website.id)
                 const automaticEmptyRow = accounts.length === 0
                 const rows: Array<{ key: string; account: AccountDetail | null; removable?: boolean }> = [
                   ...accounts.map((account) => ({ key: account.id, account })),
@@ -516,12 +548,21 @@ export function VaultTable({
                 ]
                 const additionalRowCount = Math.max(0, rows.length - 1)
                 const rowsExpanded = expandedWebsites.has(website.id)
+                const visibleRowIndexes = rows
+                  .map((row, index) =>
+                    groupVisible &&
+                    (!filterKey || websiteMatches || !row.account || accountMatchesSafeFilter(row.account, filterKey))
+                      ? index
+                      : -1,
+                  )
+                  .filter((index) => index >= 0)
+                const firstVisibleIndex = visibleRowIndexes[0] ?? -1
                 return rows.map((row, index) => (
                   <InlineAccountRow
                     key={row.key}
                     website={website}
                     account={row.account}
-                    firstWebsiteRow={index === 0}
+                    firstWebsiteRow={index === firstVisibleIndex}
                     selected={row.account?.id === selectedAccountId}
                     websiteSelected={selectedWebsiteIds.has(website.id)}
                     additionalRowCount={additionalRowCount}
@@ -538,10 +579,21 @@ export function VaultTable({
                     onDeleteWebsite={onDeleteWebsite}
                     onWebsiteSelectedChange={setWebsiteSelected}
                     onRemoveDraft={row.removable ? () => removeDraftRow(website.id, row.key) : undefined}
-                    hidden={index > 0 && !rowsExpanded}
+                    hidden={
+                      !groupVisible ||
+                      (Boolean(filterKey) && !websiteMatches && Boolean(row.account) && !accountMatchesSafeFilter(row.account!, filterKey)) ||
+                      (index !== firstVisibleIndex && !rowsExpanded)
+                    }
                   />
                 ))
               })}
+              {filterKey && visibleWebsiteCount === 0 ? (
+                <tr>
+                  <td colSpan={5} className="vault-filter-empty">
+                    当前分类中没有匹配的网站或账号。密码和敏感字段不会参与筛选。
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

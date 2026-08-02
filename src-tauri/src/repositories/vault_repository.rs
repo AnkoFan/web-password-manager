@@ -30,7 +30,7 @@ impl<'connection> VaultRepository<'connection> {
                  FROM websites
                  WHERE deleted_at IS NULL
                    AND (?1 IS NULL OR category_id = ?1)
-                 ORDER BY sort_order, name_key, id",
+                 ORDER BY name_key, id",
             )
             .map_err(storage_error)?;
         let rows = statement
@@ -156,7 +156,7 @@ impl<'connection> VaultRepository<'connection> {
                  JOIN websites w ON w.id = a.website_id AND w.deleted_at IS NULL
                  JOIN categories c ON c.id = w.category_id AND c.deleted_at IS NULL
                  WHERE a.website_id = ?1 AND a.deleted_at IS NULL
-                 ORDER BY a.sort_order, a.display_name_key, a.id",
+                 ORDER BY a.display_name_key, a.id",
             )
             .map_err(storage_error)?;
         let rows = statement
@@ -1076,6 +1076,48 @@ mod tests {
         assert_eq!(detail.fields.len(), 2);
         assert_eq!(detail.fields[0].sort_order, 0);
         assert_eq!(detail.fields[1].sort_order, 1);
+    }
+
+    #[test]
+    fn websites_and_accounts_are_listed_by_normalized_name() {
+        let (_temp, mut connection) = test_connection();
+        let category = CategoryRepository::new(&mut connection)
+            .create("虚构排序分类")
+            .unwrap();
+        let mut repository = VaultRepository::new(&mut connection);
+        let zulu = repository
+            .save_website(None, category.id, "Zulu", Some("https://zulu.example.test"))
+            .unwrap();
+        repository
+            .save_website(
+                None,
+                category.id,
+                "Alpha",
+                Some("https://alpha.example.test"),
+            )
+            .unwrap();
+        repository
+            .save_account(None, zulu.id, "Zulu account", example_fields())
+            .unwrap();
+        repository
+            .save_account(None, zulu.id, "Alpha account", example_fields())
+            .unwrap();
+
+        let website_names: Vec<_> = repository
+            .list_websites(Some(category.id))
+            .unwrap()
+            .into_iter()
+            .map(|website| website.name)
+            .collect();
+        let account_names: Vec<_> = repository
+            .list_accounts(zulu.id)
+            .unwrap()
+            .into_iter()
+            .map(|account| account.display_name)
+            .collect();
+
+        assert_eq!(website_names, vec!["Alpha", "Zulu"]);
+        assert_eq!(account_names, vec!["Alpha account", "Zulu account"]);
     }
 
     #[test]
