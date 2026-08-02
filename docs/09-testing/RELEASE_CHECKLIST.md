@@ -23,7 +23,7 @@
 
 - [x] MIT License。
 - [x] 发布说明准确描述 DPAPI/SQLCipher 和无锁定限制。
-- [x] `WebPasswordManager_0.2.0-beta.1_x64-setup.exe`（216,698,123 字节）SHA-256 已记录为 `322B4F7488411158040E6AD9E13F6E6E41CC142E6A26C13B361797E0B9047459`。
+- [x] 搜索框间距修正版 `WebPasswordManager_0.2.0-beta.1_x64-setup.exe`（216,699,658 字节）SHA-256 已记录为 `5F8DC0EA5A5DD79B633976F6E0EDBBDD5A8FF586D584697DD22CF7BFFA09922E`。
 - [x] 发布说明明确披露当前安装包未正式代码签名。
 
 以上未全部通过前，只用于虚构测试数据。

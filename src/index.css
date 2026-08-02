@@ -285,15 +285,17 @@
   }
 
   .search-control > svg {
-    @apply absolute left-3 size-4 text-muted-foreground;
+    @apply pointer-events-none absolute left-3 z-10 size-4 text-muted-foreground;
   }
 
   .search-control input {
-    @apply bg-background pr-16 pl-9;
+    @apply bg-background;
+    padding-left: 2.75rem !important;
+    padding-right: 4rem !important;
   }
 
   .search-control kbd {
-    @apply absolute right-2 rounded border bg-muted px-1.5 py-0.5 font-sans text-[11px] text-muted-foreground;
+    @apply pointer-events-none absolute right-2 z-10 rounded border bg-muted px-1.5 py-0.5 font-sans text-[11px] text-muted-foreground;
   }
 
   .content-grid {
@@ -1172,7 +1174,7 @@
   }
 
   .search-control input {
-    padding-right: 0.75rem;
+    padding-right: 0.75rem !important;
   }
 
   .vault-table-toolbar {
