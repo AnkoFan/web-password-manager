@@ -28,6 +28,8 @@ import type {
 } from "@/services/vault-client"
 import { vaultTextKey } from "@/services/vault-order"
 
+import { PasswordGeneratorButton } from "./PasswordGeneratorButton"
+
 export type VaultEntry = {
   website: Website
   account: AccountDetail | null
@@ -328,6 +330,14 @@ function InlineAccountRow({
           <Button type="button" variant="ghost" size="icon-sm" aria-label={passwordVisible ? "隐藏密码" : "显示密码"} onClick={() => void togglePassword()}>
             {passwordVisible ? <EyeOff /> : <Eye />}
           </Button>
+          <PasswordGeneratorButton
+            onGenerated={(generatedPassword) => {
+              setPassword(generatedPassword)
+              setPasswordDirty(true)
+              setShowNewPassword(false)
+              setError("")
+            }}
+          />
           {account && passwordField ? (
             <Button type="button" variant="ghost" size="icon-sm" aria-label="复制密码" onClick={() => void onCopyField(passwordField.id, passwordField.label)}>
               <Copy />

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import "@testing-library/jest-dom/vitest"
 
-import type { AccountDetail, Website } from "@/services/vault-client"
+import { vaultClient, type AccountDetail, type AccountDraft, type Website } from "@/services/vault-client"
 
 import {
   accountMatchesSafeFilter,
@@ -10,7 +10,10 @@ import {
   type VaultEntry,
 } from "./VaultTable"
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 const website: Website = {
   id: "TEST-ONLY-WEBSITE",
@@ -48,7 +51,11 @@ function account(id: string, displayName: string): AccountDetail {
   }
 }
 
-function table(entries: VaultEntry[], filterQuery = "") {
+function table(
+  entries: VaultEntry[],
+  filterQuery = "",
+  onSaveAccount: (draft: AccountDraft) => Promise<void> = vi.fn().mockResolvedValue(undefined),
+) {
   return (
     <VaultTable
       category={{ id: website.categoryId, name: "虚构分类", sortOrder: 0 }}
@@ -62,7 +69,7 @@ function table(entries: VaultEntry[], filterQuery = "") {
       onDeleteWebsite={vi.fn()}
       onWebsiteSelectionChange={vi.fn()}
       onDeleteSelectedWebsites={vi.fn()}
-      onSaveAccount={vi.fn().mockResolvedValue(undefined)}
+      onSaveAccount={onSaveAccount}
       onDeleteAccount={vi.fn()}
       onOpenWebsite={vi.fn().mockResolvedValue(undefined)}
       onToggleReveal={vi.fn().mockResolvedValue(undefined)}
@@ -148,5 +155,32 @@ describe("VaultTable account grouping", () => {
     rerender(table(entries))
 
     expect(screen.getByDisplayValue("仅用于测试的草稿")).toBeInTheDocument()
+  })
+
+  it("fills a generated password hidden without saving the account", async () => {
+    const generatedPassword = "A7!generated-test-value"
+    vi.spyOn(vaultClient, "generatePassword").mockResolvedValue(generatedPassword)
+    const saveAccount = vi.fn().mockResolvedValue(undefined)
+    render(table([{ website, account: account("TEST-ONLY-ACCOUNT-1", "虚构账号") }], "", saveAccount))
+
+    const generatorButton = screen.getByRole("button", { name: "生成密码" })
+    fireEvent.click(generatorButton)
+    expect(screen.getByRole("dialog", { name: "生成密码" })).toBeInTheDocument()
+    expect(screen.getByLabelText("长度")).toHaveValue(20)
+    fireEvent.click(screen.getByRole("button", { name: "生成并填入" }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("虚构网站 的密码")).toHaveValue(generatedPassword),
+    )
+    expect(screen.getByLabelText("虚构网站 的密码")).toHaveAttribute("type", "password")
+    expect(saveAccount).not.toHaveBeenCalled()
+    await waitFor(() => expect(generatorButton).toHaveFocus())
+    expect(vaultClient.generatePassword).toHaveBeenCalledWith({
+      length: 20,
+      lowercase: true,
+      uppercase: true,
+      digits: true,
+      symbols: true,
+    })
   })
 })

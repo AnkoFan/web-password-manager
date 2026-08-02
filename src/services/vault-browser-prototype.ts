@@ -7,6 +7,7 @@ import {
   type AppSettings,
   type BackupInfo,
   type Category,
+  type PasswordGeneratorOptions,
   type SearchResult,
   type TrashItem,
   type Website,
@@ -151,6 +152,46 @@ export function listWebsites(categoryId?: string): Website[] {
         (!categoryId || website.categoryId === categoryId),
     ),
   )
+}
+
+const passwordCharacters = {
+  lowercase: "abcdefghijklmnopqrstuvwxyz",
+  uppercase: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  digits: "0123456789",
+  symbols: "!@#$%^&*()-_=+[]{};:,.?",
+} as const
+
+function secureRandomIndex(upperBound: number) {
+  const range = 0x1_0000_0000
+  const limit = range - (range % upperBound)
+  const values = new Uint32Array(1)
+  do {
+    crypto.getRandomValues(values)
+  } while (values[0] >= limit)
+  return values[0] % upperBound
+}
+
+export function generatePassword(options: PasswordGeneratorOptions) {
+  if (!Number.isInteger(options.length) || options.length < 8 || options.length > 128) {
+    throw new VaultClientError("invalid_input", "密码长度必须在 8 到 128 个字符之间")
+  }
+  const classes = (Object.keys(passwordCharacters) as Array<keyof typeof passwordCharacters>)
+    .filter((name) => options[name])
+    .map((name) => passwordCharacters[name])
+  if (classes.length === 0) {
+    throw new VaultClientError("invalid_input", "请至少选择一种字符类型")
+  }
+
+  const pool = classes.join("")
+  const result = classes.map((characters) => characters[secureRandomIndex(characters.length)])
+  while (result.length < options.length) {
+    result.push(pool[secureRandomIndex(pool.length)])
+  }
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = secureRandomIndex(index + 1)
+    ;[result[index], result[swapIndex]] = [result[swapIndex], result[index]]
+  }
+  return result.join("")
 }
 
 export function saveWebsite(draft: WebsiteDraft): Website {

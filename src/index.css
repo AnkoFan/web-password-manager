@@ -382,6 +382,32 @@
     @apply h-36 text-center text-muted-foreground;
   }
 
+  .password-generator-form {
+    @apply grid gap-5 py-2;
+  }
+
+  .password-generator-form > label,
+  .password-generator-form fieldset {
+    @apply grid gap-2;
+  }
+
+  .password-generator-form label > span,
+  .password-generator-form legend {
+    @apply text-sm font-medium;
+  }
+
+  .password-generator-classes {
+    @apply grid grid-cols-2 gap-3;
+  }
+
+  .password-generator-classes label {
+    @apply flex items-center gap-2 rounded-md border px-3 py-2;
+  }
+
+  .password-generator-error {
+    @apply text-sm text-destructive;
+  }
+
   .vault-table tbody tr:last-child td {
     @apply border-b-0;
   }

@@ -76,4 +76,29 @@ describe("browser prototype local database", () => {
     expect(categories).toContainEqual(expect.objectContaining({ id: before.id }))
     expect(categories.some((category) => category.name === "虚构备份后分类")).toBe(false)
   })
+
+  it("generates a password with Web Crypto in the browser prototype", async () => {
+    const password = await vaultClient.generatePassword({
+      length: 32,
+      lowercase: true,
+      uppercase: true,
+      digits: true,
+      symbols: true,
+    })
+
+    expect(password).toHaveLength(32)
+    expect(password).toMatch(/[a-z]/)
+    expect(password).toMatch(/[A-Z]/)
+    expect(password).toMatch(/[0-9]/)
+    expect(password).toMatch(/[!@#$%^&*()\-_=+\[\]{};:,.?]/)
+    await expect(
+      vaultClient.generatePassword({
+        length: 20,
+        lowercase: false,
+        uppercase: false,
+        digits: false,
+        symbols: false,
+      }),
+    ).rejects.toThrow("请至少选择一种字符类型")
+  })
 })

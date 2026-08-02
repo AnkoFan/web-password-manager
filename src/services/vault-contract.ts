@@ -64,6 +64,14 @@ export type AccountDraft = {
   fields: AccountFieldDraft[]
 }
 
+export type PasswordGeneratorOptions = {
+  length: number
+  lowercase: boolean
+  uppercase: boolean
+  digits: boolean
+  symbols: boolean
+}
+
 export type SearchResult = {
   kind: "website" | "account"
   id: string

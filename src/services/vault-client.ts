@@ -9,6 +9,7 @@ import {
   type AppSettings,
   type BackupInfo,
   type Category,
+  type PasswordGeneratorOptions,
   type SearchResult,
   type TrashItem,
   type Website,
@@ -26,6 +27,7 @@ export {
   type BackupInfo,
   type Category,
   type FieldType,
+  type PasswordGeneratorOptions,
   type SearchResult,
   type SystemRole,
   type TrashItem,
@@ -159,6 +161,12 @@ export const vaultClient = {
   async deleteAccount(accountId: string) {
     await desktopOrPrototype("delete_account", { accountId }, async () =>
       (await browserPrototype()).deleteAccount(accountId),
+    )
+  },
+
+  generatePassword(options: PasswordGeneratorOptions) {
+    return desktopOrPrototype<string>("generate_password", { options }, async () =>
+      (await browserPrototype()).generatePassword(options),
     )
   },
 

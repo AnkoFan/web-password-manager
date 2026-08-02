@@ -7,6 +7,7 @@ mod commands;
 mod domain;
 #[cfg(windows)]
 mod dpapi;
+mod password_generator;
 mod repositories;
 mod settings;
 mod storage;
@@ -60,6 +61,7 @@ pub fn run() {
             commands::get_account,
             commands::save_account,
             commands::delete_account,
+            commands::generate_password,
             commands::search_vault,
             commands::list_trash,
             commands::restore_deletion_group,
