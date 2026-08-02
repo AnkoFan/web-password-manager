@@ -1,65 +1,49 @@
 # M3 公开测试版准备交接
 
-> 交接日期：2026-07-30
+> 最后更新日期：2026-08-02
 >
-> 状态：M2.1–M2.6 已完成 / M3 执行中（进度以 `09-PHASE_3_EXECUTION_PLAN.md` 为准）
+> 状态：`0.2.0-beta.1` 候选收口中；进度以 [M3 执行计划](09-PHASE_3_EXECUTION_PLAN.md) 为准
 
-## 1. 起点
+## 1. 当前基线
 
-- 仓库：`AnkoFan/web-password-manager`，当前保持私有。
-- 默认分支：`main`。
-- M2.5 基线：`47a78f0` / `m2.5-internal`。
-- M2.6 最终实现：`b594757` / `m2.6-internal`。
-- 提交身份：`AnkoFan <168768984+AnkoFan@users.noreply.github.com>`。
-- 首次远程 CI：前端、Windows Rust/SQLCipher、RustSec 与 Security audit 全部通过。
-- 自动化基线：44 个 Rust 测试、4 个前端测试、生产构建、敏感面扫描和 npm audit 均通过。
-
-M2 的开发与内部验收已经关闭。M3 不是继续补 M2 功能，而是把内部版本推进到可公开测试的质量、安全和治理门槛。
+- 仓库：`AnkoFan/web-password-manager`；默认分支 `main`。
+- M2.6 不可移动基线：`b594757953f56b5022f39ceb5a61403c540f70c3` / `m2.6-internal`。
+- M3 工作分支：`agent/m3-execution-plan`。
+- 当前产品决策：随机 256 位 SQLCipher 数据库密钥由当前 Windows 用户 DPAPI 自动保护，启动时自动打开。
+- 不提供主密码、锁定、解锁、自动锁定、生物识别或 Windows 生命周期锁定。
+- 当前工作分支已经实现分类、网站、多账号行内编辑、搜索、敏感字段操作、网址打开、批量网站软删除、回收站恢复、加密备份恢复和安装升级保护。
 
 ## 2. 不可放宽的边界
 
-- M3 发布门禁全部通过前，只使用虚构测试数据。
-- 不引入云同步、遥测、远程脚本、浏览器扩展、团队共享或动态插件。
-- 主密码、DEK、密码、Token 和恢复码不得进入日志、Web Storage、崩溃转储或测试夹具。
-- 前端继续只通过类型化 Tauri 命令访问业务和敏感能力。
-- 不因赶版本移除篡改检查、锁定边界、敏感面扫描或最小权限配置。
+- M3 发布门禁全部通过前只使用虚构测试数据。
+- 不读取、迁移、覆盖或删除旧明文及旧主密码测试保险库。
+- 数据库不得以普通 SQLite 文件头落盘，DPAPI 文件、日志和测试证据不得包含数据库明文密钥。
+- 前端只通过类型化 Tauri 命令访问业务和敏感能力。
+- 不重新加入任何锁定或解锁设计。
 
-## 3. M3 必做范围
+## 3. 当前剩余工作
 
-1. 冻结 M3 版本号、退出条件和公开测试边界。
-2. 更新威胁模型，覆盖公开分发、安装包替换、崩溃文件、升级与迁移。
-3. 设计并实现安全头格式 v2、KDF 参数升级及迁移前备份/失败恢复。
-4. 完成 Windows 锁屏、休眠、切换用户、异常退出、剪贴板历史、WebView2 缓存和崩溃转储人工验收。
-5. 完成安装、覆盖升级、卸载和数据保留/清理测试。
-6. 完善无障碍、键盘操作、错误状态与发布说明。
-7. 选择开源许可证，记录发布产物 SHA-256，并评估代码签名。
-8. 仓库公开后启用 `main` 分支保护，要求现有 CI 检查全部通过。
-9. 在允许保存真实秘密或公开推荐前完成第三方或独立安全评审。
+1. 将前端、Rust 与 Tauri 版本统一冻结为 `0.2.0-beta.1`。
+2. 清理当前有效文档中已废止的主密码、KDF 和锁定验收要求；历史阶段记录保留。
+3. 在候选版本上运行前端、Rust、npm audit、RustSec、生产构建和敏感面门禁。
+4. 生成最终 Windows NSIS 安装包，记录文件大小和 SHA-256。
+5. 一次性提交并推送候选；只短时查询 CI，避免免费 GitHub Actions 额度被持续监视或重复推送消耗。
+6. CI 通过后合入 `main`；是否创建公开 GitHub Release 和标签由项目所有者最终确认。
 
-## 4. 建议首个增量
+## 4. 发布边界
 
-先创建 M3 执行计划，不直接修改保险库格式：
+- 当前安装包尚无正式代码签名，发布说明必须明确披露 Windows 可能显示“未知发布者”。
+- DPAPI 备份通常不能跨 Windows 用户或设备恢复。
+- 应用启动后数据自动可见；当前用户上下文恶意程序、管理员、运行期内存读取、屏幕和剪贴板历史不由静态加密解决。
+- 云同步、团队共享、浏览器扩展、移动端和真实凭据迁移不进入当前 M3。
 
-1. 明确版本号和退出条件。
-2. 对安全头 v1、schema v2、备份恢复与 KDF 常量建立兼容矩阵。
-3. 为格式 v2 编写设计决策记录、迁移失败场景和测试清单。
-4. 评审通过后再实现最小迁移增量。
-
-开发继续使用 `agent/<description>` 功能分支和 Pull Request。仓库仍为 GitHub Free 私有仓库时，分支保护依靠流程约束；公开后改为平台强制规则。
-
-## 5. 新对话启动指令
-
-在新对话中可以直接使用：
-
-> 开始 M3。先读取 `docs/00-foundation/08-PHASE_3_HANDOFF.md`、路线图、安全回归和发布检查清单，核对 GitHub `main` 与 `m2.6-internal`，然后制定并执行 M3 首个增量。继续只使用虚构测试数据。
-
-## 6. 必读文档
+## 5. 必读文档
 
 - [开发路线图](05-ROADMAP.md)
-- [第二阶段执行计划](07-PHASE_2_EXECUTION_PLAN.md)
-- [第二阶段安全回归](../04-security/PHASE_2_SECURITY_REVIEW.md)
-- [M2.6 安全加固记录](../09-testing/PHASE_2_M2_6_SECURITY_HARDENING.md)
-- [发布检查清单](../09-testing/RELEASE_CHECKLIST.md)
+- [M3 执行计划](09-PHASE_3_EXECUTION_PLAN.md)
+- [ADR-014：DPAPI + SQLCipher 自动打开](12-ADR_DPAPI_SQLCIPHER_AUTO_OPEN.md)
+- [安全测试计划](../04-security/SECURITY_TEST_PLAN.md)
 - [安全测试用例](../09-testing/SECURITY_TEST_CASES.md)
-- [安全模型](../04-security/SECURITY_MODEL.md)
-- [威胁模型](../04-security/THREAT_MODEL.md)
+- [质量检查清单](../09-testing/QUALITY_CHECKLIST.md)
+- [发布检查清单](../09-testing/RELEASE_CHECKLIST.md)
+- [发布说明草案](../10-release-and-operations/RELEASE_NOTES_0.2.0-beta.1_DRAFT.md)
