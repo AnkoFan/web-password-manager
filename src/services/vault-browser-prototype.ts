@@ -62,16 +62,22 @@ function requiredName(value: string, max: number) {
 }
 
 function activeCategory(categoryId: string) {
-  return categories.find((category) => category.id === categoryId && !category.deletedGroupId)
+  return categories.find(
+    (category) => category.id === categoryId && !category.deletedGroupId,
+  )
 }
 
 function activeWebsite(websiteId: string) {
-  const website = websites.find((entry) => entry.id === websiteId && !entry.deletedGroupId)
+  const website = websites.find(
+    (entry) => entry.id === websiteId && !entry.deletedGroupId,
+  )
   return website && activeCategory(website.categoryId) ? website : undefined
 }
 
 function activeAccount(accountId: string) {
-  const account = accounts.find((entry) => entry.id === accountId && !entry.deletedGroupId)
+  const account = accounts.find(
+    (entry) => entry.id === accountId && !entry.deletedGroupId,
+  )
   return account && activeWebsite(account.websiteId) ? account : undefined
 }
 
@@ -92,12 +98,19 @@ export function status() {
 }
 
 export function listCategories(): Category[] {
-  return sortVaultNames(categories.filter((category) => !category.deletedGroupId))
+  return sortVaultNames(
+    categories.filter((category) => !category.deletedGroupId),
+  )
 }
 
 export function createCategory(name: string): Category {
   const display = requiredName(name, 100)
-  if (categories.some((category) => !category.deletedGroupId && key(category.name) === key(display))) {
+  if (
+    categories.some(
+      (category) =>
+        !category.deletedGroupId && key(category.name) === key(display),
+    )
+  ) {
     throw new VaultClientError("category_already_exists", "该分类名称已经存在")
   }
   const category = { id: id(), name: display, sortOrder: categories.length }
@@ -112,7 +125,9 @@ export function renameCategory(categoryId: string, name: string) {
   if (
     categories.some(
       (entry) =>
-        entry.id !== categoryId && !entry.deletedGroupId && key(entry.name) === key(display),
+        entry.id !== categoryId &&
+        !entry.deletedGroupId &&
+        key(entry.name) === key(display),
     )
   ) {
     throw new VaultClientError("category_already_exists", "该分类名称已经存在")
@@ -172,10 +187,19 @@ function secureRandomIndex(upperBound: number) {
 }
 
 export function generatePassword(options: PasswordGeneratorOptions) {
-  if (!Number.isInteger(options.length) || options.length < 8 || options.length > 128) {
-    throw new VaultClientError("invalid_input", "密码长度必须在 8 到 128 个字符之间")
+  if (
+    !Number.isInteger(options.length) ||
+    options.length < 8 ||
+    options.length > 128
+  ) {
+    throw new VaultClientError(
+      "invalid_input",
+      "密码长度必须在 8 到 128 个字符之间",
+    )
   }
-  const classes = (Object.keys(passwordCharacters) as Array<keyof typeof passwordCharacters>)
+  const classes = (
+    Object.keys(passwordCharacters) as Array<keyof typeof passwordCharacters>
+  )
     .filter((name) => options[name])
     .map((name) => passwordCharacters[name])
   if (classes.length === 0) {
@@ -183,7 +207,9 @@ export function generatePassword(options: PasswordGeneratorOptions) {
   }
 
   const pool = classes.join("")
-  const result = classes.map((characters) => characters[secureRandomIndex(characters.length)])
+  const result = classes.map(
+    (characters) => characters[secureRandomIndex(characters.length)],
+  )
   while (result.length < options.length) {
     result.push(pool[secureRandomIndex(pool.length)])
   }
@@ -212,7 +238,8 @@ export function saveWebsite(draft: WebsiteDraft): Website {
     categoryId: draft.categoryId,
     name,
     primaryUrl,
-    sortOrder: websites.filter((entry) => entry.categoryId === draft.categoryId).length,
+    sortOrder: websites.filter((entry) => entry.categoryId === draft.categoryId)
+      .length,
   }
   websites.push(website)
   return website
@@ -240,21 +267,22 @@ export function listAccounts(websiteId: string): AccountSummary[] {
   if (!activeWebsite(websiteId)) return []
   return sortVaultNames(
     accounts
-      .filter((account) => account.websiteId === websiteId && !account.deletedGroupId)
+      .filter(
+        (account) => account.websiteId === websiteId && !account.deletedGroupId,
+      )
       .map((account) => ({ ...account, name: account.displayName })),
-  )
-    .map((account) => ({
-      id: account.id,
-      websiteId: account.websiteId,
-      displayName: account.displayName,
-      summary:
-        account.fields.find(
-          (field) =>
-            !field.isSensitive &&
-            (field.systemRole === "username" || field.systemRole === "email"),
-        )?.value ?? null,
-      sortOrder: account.sortOrder,
-    }))
+  ).map((account) => ({
+    id: account.id,
+    websiteId: account.websiteId,
+    displayName: account.displayName,
+    summary:
+      account.fields.find(
+        (field) =>
+          !field.isSensitive &&
+          (field.systemRole === "username" || field.systemRole === "email"),
+      )?.value ?? null,
+    sortOrder: account.sortOrder,
+  }))
 }
 
 export function getAccount(accountId: string): AccountDetail {
@@ -280,7 +308,8 @@ export function saveAccount(draft: AccountDraft): AccountDetail {
     throw new VaultClientError("account_already_exists", "该账号名称已经存在")
   }
   const current = draft.id ? activeAccount(draft.id) : undefined
-  if (draft.id && !current) throw new VaultClientError("account_not_found", "账号不存在")
+  if (draft.id && !current)
+    throw new VaultClientError("account_not_found", "账号不存在")
 
   const labelKeys = new Set<string>()
   const roles = new Set<string>()
@@ -288,12 +317,18 @@ export function saveAccount(draft: AccountDraft): AccountDetail {
     const label = requiredName(field.label, 100)
     const labelKey = key(label)
     if (labelKeys.has(labelKey)) {
-      throw new VaultClientError("invalid_input", "同一账号内不能有重复字段名称")
+      throw new VaultClientError(
+        "invalid_input",
+        "同一账号内不能有重复字段名称",
+      )
     }
     labelKeys.add(labelKey)
     if (field.systemRole) {
       if (roles.has(field.systemRole)) {
-        throw new VaultClientError("invalid_input", "同一账号内不能有重复系统字段")
+        throw new VaultClientError(
+          "invalid_input",
+          "同一账号内不能有重复系统字段",
+        )
       }
       roles.add(field.systemRole)
     }
@@ -303,9 +338,12 @@ export function saveAccount(draft: AccountDraft): AccountDetail {
     ) {
       throw new VaultClientError("invalid_input", "密码字段必须标记为敏感")
     }
-    const previous = field.id ? current?.fields.find((entry) => entry.id === field.id) : undefined
+    const previous = field.id
+      ? current?.fields.find((entry) => entry.id === field.id)
+      : undefined
     const value = field.keepExistingValue ? previous?.value : field.value
-    if (value == null) throw new VaultClientError("invalid_input", "字段值状态无效")
+    if (value == null)
+      throw new VaultClientError("invalid_input", "字段值状态无效")
     return {
       id: field.id ?? id(),
       systemRole: field.systemRole ?? null,
@@ -327,7 +365,8 @@ export function saveAccount(draft: AccountDraft): AccountDetail {
     id: id(),
     websiteId: draft.websiteId,
     displayName,
-    sortOrder: accounts.filter((entry) => entry.websiteId === draft.websiteId).length,
+    sortOrder: accounts.filter((entry) => entry.websiteId === draft.websiteId)
+      .length,
     fields,
   }
   accounts.push(account)
@@ -358,7 +397,8 @@ export function search(query: string): SearchResult[] {
         id: website.id,
         title: website.name,
         subtitle:
-          categories.find((category) => category.id === website.categoryId)?.name ?? "",
+          categories.find((category) => category.id === website.categoryId)
+            ?.name ?? "",
         categoryId: website.categoryId,
         websiteId: website.id,
         accountId: null,
@@ -394,18 +434,130 @@ export function listTrash(): TrashItem[] {
 }
 
 export function restore(groupId: string) {
-  const item = trash.find((entry) => entry.groupId === groupId)
-  if (!item) throw new VaultClientError("deletion_group_not_found", "删除记录不存在")
-  for (const category of categories) {
-    if (category.deletedGroupId === groupId) delete category.deletedGroupId
+  restoreMany([groupId])
+}
+
+export function restoreMany(groupIds: string[]) {
+  const selected = normalizedGroupIds(groupIds)
+  const items = selected.map((groupId) => {
+    const item = trash.find((entry) => entry.groupId === groupId)
+    if (!item)
+      throw new VaultClientError("deletion_group_not_found", "删除记录不存在")
+    return item
+  })
+  const nextCategories = structuredClone(categories)
+  const nextWebsites = structuredClone(websites)
+  const nextAccounts = structuredClone(accounts)
+  const order = { category: 0, website: 1, account: 2 }
+  for (const item of items.sort(
+    (left, right) => order[left.entityType] - order[right.entityType],
+  )) {
+    if (item.entityType === "website") {
+      const website = nextWebsites.find(
+        (entry) => entry.deletedGroupId === item.groupId,
+      )
+      const parent =
+        website &&
+        nextCategories.find((entry) => entry.id === website.categoryId)
+      if (!parent || parent.deletedGroupId) {
+        throw new VaultClientError(
+          "parent_unavailable",
+          "所属对象不存在或已删除",
+        )
+      }
+    }
+    if (item.entityType === "account") {
+      const account = nextAccounts.find(
+        (entry) => entry.deletedGroupId === item.groupId,
+      )
+      const website =
+        account && nextWebsites.find((entry) => entry.id === account.websiteId)
+      const category =
+        website &&
+        nextCategories.find((entry) => entry.id === website.categoryId)
+      if (
+        !website ||
+        website.deletedGroupId ||
+        !category ||
+        category.deletedGroupId
+      ) {
+        throw new VaultClientError(
+          "parent_unavailable",
+          "所属对象不存在或已删除",
+        )
+      }
+    }
+    for (const category of nextCategories) {
+      if (category.deletedGroupId === item.groupId)
+        delete category.deletedGroupId
+    }
+    for (const website of nextWebsites) {
+      if (website.deletedGroupId === item.groupId) delete website.deletedGroupId
+    }
+    for (const account of nextAccounts) {
+      if (account.deletedGroupId === item.groupId) delete account.deletedGroupId
+    }
+  }
+  categories = nextCategories
+  websites = nextWebsites
+  accounts = nextAccounts
+  trash = trash.filter((entry) => !selected.includes(entry.groupId))
+}
+
+export function permanentlyDelete(groupIds: string[]) {
+  const selected = normalizedGroupIds(groupIds)
+  const items = selected.map((groupId) => {
+    const item = trash.find((entry) => entry.groupId === groupId)
+    if (!item)
+      throw new VaultClientError("deletion_group_not_found", "删除记录不存在")
+    return item
+  })
+  const categoryIds = new Set<string>()
+  const websiteIds = new Set<string>()
+  const accountIds = new Set<string>()
+  for (const item of items) {
+    for (const category of categories) {
+      if (category.deletedGroupId === item.groupId) categoryIds.add(category.id)
+    }
+    for (const website of websites) {
+      if (website.deletedGroupId === item.groupId) websiteIds.add(website.id)
+    }
+    for (const account of accounts) {
+      if (account.deletedGroupId === item.groupId) accountIds.add(account.id)
+    }
   }
   for (const website of websites) {
-    if (website.deletedGroupId === groupId) delete website.deletedGroupId
+    if (categoryIds.has(website.categoryId)) websiteIds.add(website.id)
   }
   for (const account of accounts) {
-    if (account.deletedGroupId === groupId) delete account.deletedGroupId
+    if (websiteIds.has(account.websiteId)) accountIds.add(account.id)
   }
-  trash = trash.filter((entry) => entry.groupId !== groupId)
+  const affectedGroups = new Set(selected)
+  for (const category of categories) {
+    if (categoryIds.has(category.id) && category.deletedGroupId)
+      affectedGroups.add(category.deletedGroupId)
+  }
+  for (const website of websites) {
+    if (websiteIds.has(website.id) && website.deletedGroupId)
+      affectedGroups.add(website.deletedGroupId)
+  }
+  for (const account of accounts) {
+    if (accountIds.has(account.id) && account.deletedGroupId)
+      affectedGroups.add(account.deletedGroupId)
+  }
+  accounts = accounts.filter((entry) => !accountIds.has(entry.id))
+  websites = websites.filter((entry) => !websiteIds.has(entry.id))
+  categories = categories.filter((entry) => !categoryIds.has(entry.id))
+  trash = trash.filter((entry) => !affectedGroups.has(entry.groupId))
+  return { affectedGroups: affectedGroups.size }
+}
+
+function normalizedGroupIds(groupIds: string[]) {
+  const selected = [...new Set(groupIds)]
+  if (selected.length === 0 || groupIds.length > 500) {
+    throw new VaultClientError("invalid_input", "请选择 1 至 500 个删除批次")
+  }
+  return selected
 }
 
 export function revealField(fieldId: string) {
@@ -423,7 +575,8 @@ export async function copyField(fieldId: string) {
 export function getWebsiteUrl(websiteId: string) {
   const website = activeWebsite(websiteId)
   if (!website) throw new VaultClientError("website_not_found", "网站不存在")
-  if (!website.primaryUrl) throw new VaultClientError("invalid_input", "网站没有可打开的网址")
+  if (!website.primaryUrl)
+    throw new VaultClientError("invalid_input", "网站没有可打开的网址")
   validateUrl(website.primaryUrl)
   return website.primaryUrl
 }
@@ -483,7 +636,10 @@ export function createBackup(): BackupInfo {
 export function verifyBackup(backupId: string): BackupInfo {
   const backup = backups.find((entry) => entry.info.id === backupId)
   if (!backup) {
-    throw new VaultClientError("backup_verify_failed", "无法验证备份，备份已损坏")
+    throw new VaultClientError(
+      "backup_verify_failed",
+      "无法验证备份，备份已损坏",
+    )
   }
   return { ...backup.info }
 }

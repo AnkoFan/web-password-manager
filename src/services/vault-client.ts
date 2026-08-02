@@ -75,7 +75,10 @@ function isTauriRuntime() {
 
 async function browserPrototype() {
   if (!import.meta.env.DEV) {
-    throw new VaultClientError("desktop_runtime_required", "请使用桌面应用打开保险库。")
+    throw new VaultClientError(
+      "desktop_runtime_required",
+      "请使用桌面应用打开保险库。",
+    )
   }
   return import("./vault-browser-prototype")
 }
@@ -91,14 +94,18 @@ async function desktopOrPrototype<T>(
 
 export const vaultClient = {
   status() {
-    return desktopOrPrototype<{ exists: boolean }>("vault_status", undefined, async () =>
-      (await browserPrototype()).status(),
+    return desktopOrPrototype<{ exists: boolean }>(
+      "vault_status",
+      undefined,
+      async () => (await browserPrototype()).status(),
     )
   },
 
   listCategories() {
-    return desktopOrPrototype<Category[]>("list_categories", undefined, async () =>
-      (await browserPrototype()).listCategories(),
+    return desktopOrPrototype<Category[]>(
+      "list_categories",
+      undefined,
+      async () => (await browserPrototype()).listCategories(),
     )
   },
 
@@ -109,8 +116,10 @@ export const vaultClient = {
   },
 
   async renameCategory(categoryId: string, name: string) {
-    await desktopOrPrototype("rename_category", { categoryId, name }, async () =>
-      (await browserPrototype()).renameCategory(categoryId, name),
+    await desktopOrPrototype(
+      "rename_category",
+      { categoryId, name },
+      async () => (await browserPrototype()).renameCategory(categoryId, name),
     )
   },
 
@@ -141,20 +150,26 @@ export const vaultClient = {
   },
 
   listAccounts(websiteId: string) {
-    return desktopOrPrototype<AccountSummary[]>("list_accounts", { websiteId }, async () =>
-      (await browserPrototype()).listAccounts(websiteId),
+    return desktopOrPrototype<AccountSummary[]>(
+      "list_accounts",
+      { websiteId },
+      async () => (await browserPrototype()).listAccounts(websiteId),
     )
   },
 
   getAccount(accountId: string) {
-    return desktopOrPrototype<AccountDetail>("get_account", { accountId }, async () =>
-      (await browserPrototype()).getAccount(accountId),
+    return desktopOrPrototype<AccountDetail>(
+      "get_account",
+      { accountId },
+      async () => (await browserPrototype()).getAccount(accountId),
     )
   },
 
   saveAccount(draft: AccountDraft) {
-    return desktopOrPrototype<AccountDetail>("save_account", { draft }, async () =>
-      (await browserPrototype()).saveAccount(draft),
+    return desktopOrPrototype<AccountDetail>(
+      "save_account",
+      { draft },
+      async () => (await browserPrototype()).saveAccount(draft),
     )
   },
 
@@ -165,14 +180,18 @@ export const vaultClient = {
   },
 
   generatePassword(options: PasswordGeneratorOptions) {
-    return desktopOrPrototype<string>("generate_password", { options }, async () =>
-      (await browserPrototype()).generatePassword(options),
+    return desktopOrPrototype<string>(
+      "generate_password",
+      { options },
+      async () => (await browserPrototype()).generatePassword(options),
     )
   },
 
   search(query: string) {
-    return desktopOrPrototype<SearchResult[]>("search_vault", { query }, async () =>
-      (await browserPrototype()).search(query),
+    return desktopOrPrototype<SearchResult[]>(
+      "search_vault",
+      { query },
+      async () => (await browserPrototype()).search(query),
     )
   },
 
@@ -185,6 +204,22 @@ export const vaultClient = {
   async restore(groupId: string) {
     await desktopOrPrototype("restore_deletion_group", { groupId }, async () =>
       (await browserPrototype()).restore(groupId),
+    )
+  },
+
+  async restoreMany(groupIds: string[]) {
+    await desktopOrPrototype(
+      "restore_deletion_groups",
+      { groupIds },
+      async () => (await browserPrototype()).restoreMany(groupIds),
+    )
+  },
+
+  permanentlyDelete(groupIds: string[]) {
+    return desktopOrPrototype<{ affectedGroups: number }>(
+      "permanently_delete_groups",
+      { groupIds },
+      async () => (await browserPrototype()).permanentlyDelete(groupIds),
     )
   },
 
@@ -207,8 +242,10 @@ export const vaultClient = {
   },
 
   async openWebsite(websiteId: string) {
-    const url = await desktopOrPrototype<string>("get_website_url", { websiteId }, async () =>
-      (await browserPrototype()).getWebsiteUrl(websiteId),
+    const url = await desktopOrPrototype<string>(
+      "get_website_url",
+      { websiteId },
+      async () => (await browserPrototype()).getWebsiteUrl(websiteId),
     )
     if (isTauriRuntime()) await openUrl(url)
     else window.open(url, "_blank", "noopener,noreferrer")
@@ -231,14 +268,18 @@ export const vaultClient = {
   },
 
   listBackups() {
-    return desktopOrPrototype<BackupInfo[]>("list_backups", undefined, async () =>
-      (await browserPrototype()).listBackups(),
+    return desktopOrPrototype<BackupInfo[]>(
+      "list_backups",
+      undefined,
+      async () => (await browserPrototype()).listBackups(),
     )
   },
 
   createBackup() {
-    return desktopOrPrototype<BackupInfo>("create_backup", undefined, async () =>
-      (await browserPrototype()).createBackup(),
+    return desktopOrPrototype<BackupInfo>(
+      "create_backup",
+      undefined,
+      async () => (await browserPrototype()).createBackup(),
     )
   },
 

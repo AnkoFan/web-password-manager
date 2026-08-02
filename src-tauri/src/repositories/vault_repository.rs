@@ -517,72 +517,125 @@ impl<'connection> VaultRepository<'connection> {
         &mut self,
         group_id: EntityId,
     ) -> Result<(), RepositoryError> {
-        let transaction = self.connection.transaction().map_err(storage_error)?;
-        let (entity_type, root_id) = transaction
-            .query_row(
-                "SELECT root_entity_type, root_entity_id FROM deletion_groups WHERE id = ?1",
-                [group_id.as_bytes().as_slice()],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?)),
-            )
-            .optional()
-            .map_err(storage_error)?
-            .ok_or(RepositoryError::DeletionGroupNotFound)?;
-        let root_id = entity_id(&root_id)?;
+        self.restore_deletion_groups(&[group_id])
+    }
 
-        match entity_type.as_str() {
-            "website" => {
-                let parent_active: bool = transaction
-                    .query_row(
-                        "SELECT EXISTS(
-                           SELECT 1 FROM websites w JOIN categories c ON c.id = w.category_id
-                           WHERE w.id = ?1 AND c.deleted_at IS NULL
-                         )",
-                        [root_id.as_bytes().as_slice()],
-                        |row| row.get(0),
-                    )
-                    .map_err(storage_error)?;
-                if !parent_active {
-                    return Err(RepositoryError::ParentUnavailable);
-                }
-            }
-            "account" => {
-                let parent_active: bool = transaction
-                    .query_row(
-                        "SELECT EXISTS(
-                           SELECT 1 FROM accounts a
-                           JOIN websites w ON w.id = a.website_id
-                           JOIN categories c ON c.id = w.category_id
-                           WHERE a.id = ?1 AND w.deleted_at IS NULL AND c.deleted_at IS NULL
-                         )",
-                        [root_id.as_bytes().as_slice()],
-                        |row| row.get(0),
-                    )
-                    .map_err(storage_error)?;
-                if !parent_active {
-                    return Err(RepositoryError::ParentUnavailable);
-                }
-            }
-            "category" => {}
-            _ => return Err(RepositoryError::CorruptData),
+    pub(crate) fn restore_deletion_groups(
+        &mut self,
+        group_ids: &[EntityId],
+    ) -> Result<(), RepositoryError> {
+        let group_ids = unique_group_ids(group_ids)?;
+        let transaction = self.connection.transaction().map_err(storage_error)?;
+        let mut groups = Vec::with_capacity(group_ids.len());
+        for group_id in group_ids {
+            groups.push(load_deletion_group(&transaction, group_id)?);
+        }
+        groups.sort_by_key(|(_, entity_type, _)| match entity_type.as_str() {
+            "category" => 0,
+            "website" => 1,
+            "account" => 2,
+            _ => 3,
+        });
+        for (group_id, entity_type, root_id) in groups {
+            restore_one_group(&transaction, group_id, &entity_type, root_id)?;
+        }
+        transaction.commit().map_err(storage_error)
+    }
+
+    pub(crate) fn permanently_delete_groups(
+        &mut self,
+        group_ids: &[EntityId],
+    ) -> Result<usize, RepositoryError> {
+        let group_ids = unique_group_ids(group_ids)?;
+        let transaction = self.connection.transaction().map_err(storage_error)?;
+        let mut groups = Vec::with_capacity(group_ids.len());
+        for group_id in &group_ids {
+            groups.push(load_deletion_group(&transaction, *group_id)?);
         }
 
-        for table in ["accounts", "websites", "categories"] {
-            let sql = format!(
-                "UPDATE {table}
-                 SET deleted_at = NULL, deletion_group_id = NULL
-                 WHERE deletion_group_id = ?1"
-            );
+        let mut category_ids = HashSet::new();
+        let mut website_ids = HashSet::new();
+        let mut account_ids = HashSet::new();
+        for (group_id, entity_type, root_id) in &groups {
+            collect_ids_by_group(
+                &transaction,
+                *group_id,
+                &mut category_ids,
+                &mut website_ids,
+                &mut account_ids,
+            )?;
+            match entity_type.as_str() {
+                "category" => {
+                    category_ids.insert(*root_id);
+                }
+                "website" => {
+                    website_ids.insert(*root_id);
+                }
+                "account" => {
+                    account_ids.insert(*root_id);
+                }
+                _ => return Err(RepositoryError::CorruptData),
+            }
+        }
+
+        for category_id in category_ids.clone() {
+            collect_websites_for_category(&transaction, category_id, &mut website_ids)?;
+        }
+        for website_id in website_ids.clone() {
+            collect_accounts_for_website(&transaction, website_id, &mut account_ids)?;
+        }
+
+        let mut affected_groups: HashSet<EntityId> = group_ids.into_iter().collect();
+        collect_entity_groups(
+            &transaction,
+            "categories",
+            &category_ids,
+            &mut affected_groups,
+        )?;
+        collect_entity_groups(&transaction, "websites", &website_ids, &mut affected_groups)?;
+        collect_entity_groups(&transaction, "accounts", &account_ids, &mut affected_groups)?;
+
+        for account_id in &account_ids {
             transaction
-                .execute(&sql, [group_id.as_bytes().as_slice()])
+                .execute(
+                    "DELETE FROM account_fields WHERE account_id = ?1",
+                    [account_id.as_bytes().as_slice()],
+                )
+                .map_err(storage_error)?;
+            transaction
+                .execute(
+                    "DELETE FROM accounts WHERE id = ?1",
+                    [account_id.as_bytes().as_slice()],
+                )
                 .map_err(storage_error)?;
         }
-        transaction
-            .execute(
-                "DELETE FROM deletion_groups WHERE id = ?1",
-                [group_id.as_bytes().as_slice()],
-            )
-            .map_err(storage_error)?;
-        transaction.commit().map_err(storage_error)
+        for website_id in &website_ids {
+            transaction
+                .execute(
+                    "DELETE FROM websites WHERE id = ?1",
+                    [website_id.as_bytes().as_slice()],
+                )
+                .map_err(storage_error)?;
+        }
+        for category_id in &category_ids {
+            transaction
+                .execute(
+                    "DELETE FROM categories WHERE id = ?1",
+                    [category_id.as_bytes().as_slice()],
+                )
+                .map_err(storage_error)?;
+        }
+        for group_id in &affected_groups {
+            transaction
+                .execute(
+                    "DELETE FROM deletion_groups WHERE id = ?1",
+                    [group_id.as_bytes().as_slice()],
+                )
+                .map_err(storage_error)?;
+        }
+        let affected_count = affected_groups.len();
+        transaction.commit().map_err(storage_error)?;
+        Ok(affected_count)
     }
 
     pub(crate) fn search(&self, query: &str) -> Result<Vec<SearchResult>, RepositoryError> {
@@ -712,6 +765,183 @@ impl<'connection> VaultRepository<'connection> {
             .ok_or(crate::domain::DomainError::InvalidUrl)?;
         validate_optional_url(Some(&value))?.ok_or(crate::domain::DomainError::InvalidUrl.into())
     }
+}
+
+fn unique_group_ids(group_ids: &[EntityId]) -> Result<Vec<EntityId>, RepositoryError> {
+    if group_ids.is_empty() || group_ids.len() > 500 {
+        return Err(RepositoryError::InvalidInput);
+    }
+    let mut seen = HashSet::new();
+    Ok(group_ids
+        .iter()
+        .copied()
+        .filter(|group_id| seen.insert(*group_id))
+        .collect())
+}
+
+fn load_deletion_group(
+    transaction: &Transaction<'_>,
+    group_id: EntityId,
+) -> Result<(EntityId, String, EntityId), RepositoryError> {
+    let (entity_type, root_id) = transaction
+        .query_row(
+            "SELECT root_entity_type, root_entity_id FROM deletion_groups WHERE id = ?1",
+            [group_id.as_bytes().as_slice()],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?)),
+        )
+        .optional()
+        .map_err(storage_error)?
+        .ok_or(RepositoryError::DeletionGroupNotFound)?;
+    Ok((group_id, entity_type, entity_id(&root_id)?))
+}
+
+fn restore_one_group(
+    transaction: &Transaction<'_>,
+    group_id: EntityId,
+    entity_type: &str,
+    root_id: EntityId,
+) -> Result<(), RepositoryError> {
+    let parent_active = match entity_type {
+        "category" => true,
+        "website" => transaction
+            .query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM websites w JOIN categories c ON c.id = w.category_id
+                   WHERE w.id = ?1 AND c.deleted_at IS NULL
+                 )",
+                [root_id.as_bytes().as_slice()],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?,
+        "account" => transaction
+            .query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM accounts a
+                   JOIN websites w ON w.id = a.website_id
+                   JOIN categories c ON c.id = w.category_id
+                   WHERE a.id = ?1 AND w.deleted_at IS NULL AND c.deleted_at IS NULL
+                 )",
+                [root_id.as_bytes().as_slice()],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?,
+        _ => return Err(RepositoryError::CorruptData),
+    };
+    if !parent_active {
+        return Err(RepositoryError::ParentUnavailable);
+    }
+    for table in ["accounts", "websites", "categories"] {
+        transaction
+            .execute(
+                &format!(
+                    "UPDATE {table} SET deleted_at = NULL, deletion_group_id = NULL
+                     WHERE deletion_group_id = ?1"
+                ),
+                [group_id.as_bytes().as_slice()],
+            )
+            .map_err(constraint_or_storage)?;
+    }
+    transaction
+        .execute(
+            "DELETE FROM deletion_groups WHERE id = ?1",
+            [group_id.as_bytes().as_slice()],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn collect_ids_by_group(
+    transaction: &Transaction<'_>,
+    group_id: EntityId,
+    categories: &mut HashSet<EntityId>,
+    websites: &mut HashSet<EntityId>,
+    accounts: &mut HashSet<EntityId>,
+) -> Result<(), RepositoryError> {
+    collect_ids(
+        transaction,
+        "SELECT id FROM categories WHERE deletion_group_id = ?1",
+        group_id,
+        categories,
+    )?;
+    collect_ids(
+        transaction,
+        "SELECT id FROM websites WHERE deletion_group_id = ?1",
+        group_id,
+        websites,
+    )?;
+    collect_ids(
+        transaction,
+        "SELECT id FROM accounts WHERE deletion_group_id = ?1",
+        group_id,
+        accounts,
+    )
+}
+
+fn collect_websites_for_category(
+    transaction: &Transaction<'_>,
+    category_id: EntityId,
+    websites: &mut HashSet<EntityId>,
+) -> Result<(), RepositoryError> {
+    collect_ids(
+        transaction,
+        "SELECT id FROM websites WHERE category_id = ?1",
+        category_id,
+        websites,
+    )
+}
+
+fn collect_accounts_for_website(
+    transaction: &Transaction<'_>,
+    website_id: EntityId,
+    accounts: &mut HashSet<EntityId>,
+) -> Result<(), RepositoryError> {
+    collect_ids(
+        transaction,
+        "SELECT id FROM accounts WHERE website_id = ?1",
+        website_id,
+        accounts,
+    )
+}
+
+fn collect_ids(
+    transaction: &Transaction<'_>,
+    sql: &str,
+    parent_id: EntityId,
+    target: &mut HashSet<EntityId>,
+) -> Result<(), RepositoryError> {
+    let mut statement = transaction.prepare(sql).map_err(storage_error)?;
+    let rows = statement
+        .query_map([parent_id.as_bytes().as_slice()], |row| {
+            row.get::<_, Vec<u8>>(0)
+        })
+        .map_err(storage_error)?;
+    for row in rows {
+        target.insert(entity_id(&row.map_err(storage_error)?)?);
+    }
+    Ok(())
+}
+
+fn collect_entity_groups(
+    transaction: &Transaction<'_>,
+    table: &str,
+    entity_ids: &HashSet<EntityId>,
+    target: &mut HashSet<EntityId>,
+) -> Result<(), RepositoryError> {
+    for entity_id_value in entity_ids {
+        let group = transaction
+            .query_row(
+                &format!("SELECT deletion_group_id FROM {table} WHERE id = ?1"),
+                [entity_id_value.as_bytes().as_slice()],
+                |row| row.get::<_, Option<Vec<u8>>>(0),
+            )
+            .optional()
+            .map_err(storage_error)?
+            .flatten();
+        if let Some(group_id) = group {
+            target.insert(entity_id(&group_id)?);
+        }
+    }
+    Ok(())
 }
 
 fn entity_id(value: &[u8]) -> Result<EntityId, RepositoryError> {
@@ -1027,6 +1257,140 @@ mod tests {
             1
         );
         assert_eq!(repository.list_accounts(website.id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn batch_restore_orders_parent_groups_before_children() {
+        let (_temp, mut connection) = test_connection();
+        let category = CategoryRepository::new(&mut connection)
+            .create("虚构分类")
+            .unwrap();
+        let mut repository = VaultRepository::new(&mut connection);
+        let website = repository
+            .save_website(None, category.id, "虚构站点", Some("https://example.test"))
+            .unwrap();
+        let account = repository
+            .save_account(None, website.id, "虚构账号", example_fields())
+            .unwrap();
+        repository.soft_delete_account(account.id).unwrap();
+        let account_group = repository.list_trash().unwrap()[0].group_id;
+        repository.soft_delete_website(website.id).unwrap();
+        let website_group = repository
+            .list_trash()
+            .unwrap()
+            .into_iter()
+            .find(|item| item.entity_type == "website")
+            .unwrap()
+            .group_id;
+
+        repository
+            .restore_deletion_groups(&[account_group, website_group])
+            .unwrap();
+
+        assert!(repository.list_trash().unwrap().is_empty());
+        assert_eq!(repository.list_accounts(website.id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn failed_batch_restore_rolls_back_every_selected_group() {
+        let (_temp, mut connection) = test_connection();
+        let category = CategoryRepository::new(&mut connection)
+            .create("虚构分类甲")
+            .unwrap();
+        let rollback_category = CategoryRepository::new(&mut connection)
+            .create("虚构分类乙")
+            .unwrap();
+        let mut repository = VaultRepository::new(&mut connection);
+        let website = repository
+            .save_website(None, category.id, "虚构站点", Some("https://example.test"))
+            .unwrap();
+        let account = repository
+            .save_account(None, website.id, "虚构账号", example_fields())
+            .unwrap();
+        repository.soft_delete_account(account.id).unwrap();
+        repository.soft_delete_website(website.id).unwrap();
+        repository
+            .soft_delete_category(rollback_category.id)
+            .unwrap();
+        let trash = repository.list_trash().unwrap();
+        let account_group = trash
+            .iter()
+            .find(|item| item.entity_type == "account")
+            .unwrap()
+            .group_id;
+        let category_group = trash
+            .iter()
+            .find(|item| item.entity_name == "虚构分类乙")
+            .unwrap()
+            .group_id;
+
+        assert_eq!(
+            repository.restore_deletion_groups(&[category_group, account_group]),
+            Err(RepositoryError::ParentUnavailable)
+        );
+        let remaining: HashSet<_> = repository
+            .list_trash()
+            .unwrap()
+            .into_iter()
+            .map(|item| item.group_id)
+            .collect();
+        assert!(remaining.contains(&category_group));
+        assert!(remaining.contains(&account_group));
+    }
+
+    #[test]
+    fn permanent_category_delete_removes_descendants_and_linked_trash_groups() {
+        let (_temp, mut connection) = test_connection();
+        let category = CategoryRepository::new(&mut connection)
+            .create("虚构分类")
+            .unwrap();
+        let mut repository = VaultRepository::new(&mut connection);
+        let website = repository
+            .save_website(None, category.id, "虚构站点", Some("https://example.test"))
+            .unwrap();
+        let account = repository
+            .save_account(None, website.id, "虚构账号", example_fields())
+            .unwrap();
+        repository.soft_delete_account(account.id).unwrap();
+        repository.soft_delete_category(category.id).unwrap();
+        let category_group = repository
+            .list_trash()
+            .unwrap()
+            .into_iter()
+            .find(|item| item.entity_type == "category")
+            .unwrap()
+            .group_id;
+
+        assert_eq!(
+            repository
+                .permanently_delete_groups(&[category_group])
+                .unwrap(),
+            2
+        );
+        assert!(repository.list_trash().unwrap().is_empty());
+        for table in ["categories", "websites", "accounts", "account_fields"] {
+            let count: i64 = repository
+                .connection
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(count, 0, "{table} should be empty");
+        }
+    }
+
+    #[test]
+    fn empty_batch_is_rejected() {
+        let (_temp, mut connection) = test_connection();
+        let mut repository = VaultRepository::new(&mut connection);
+        assert_eq!(
+            repository.restore_deletion_groups(&[]),
+            Err(RepositoryError::InvalidInput)
+        );
+        assert_eq!(
+            repository.permanently_delete_groups(&[]),
+            Err(RepositoryError::InvalidInput)
+        );
     }
 
     #[test]

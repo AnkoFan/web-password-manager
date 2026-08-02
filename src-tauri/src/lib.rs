@@ -65,6 +65,8 @@ pub fn run() {
             commands::search_vault,
             commands::list_trash,
             commands::restore_deletion_group,
+            commands::restore_deletion_groups,
+            commands::permanently_delete_groups,
             commands::reveal_field,
             commands::copy_field,
             commands::copy_website_url,

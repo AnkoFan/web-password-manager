@@ -521,6 +521,43 @@ pub(crate) fn restore_deletion_group(
 }
 
 #[tauri::command]
+pub(crate) fn restore_deletion_groups(
+    group_ids: Vec<String>,
+    state: State<'_, VaultState>,
+) -> Result<(), CommandError> {
+    let group_ids = group_ids
+        .iter()
+        .map(|value| parse_id(value))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut session = require_connection(&state)?;
+    VaultRepository::new(session.connection.as_mut().expect("checked above"))
+        .restore_deletion_groups(&group_ids)
+        .map_err(repository_error)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PurgeResult {
+    affected_groups: usize,
+}
+
+#[tauri::command]
+pub(crate) fn permanently_delete_groups(
+    group_ids: Vec<String>,
+    state: State<'_, VaultState>,
+) -> Result<PurgeResult, CommandError> {
+    let group_ids = group_ids
+        .iter()
+        .map(|value| parse_id(value))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut session = require_connection(&state)?;
+    VaultRepository::new(session.connection.as_mut().expect("checked above"))
+        .permanently_delete_groups(&group_ids)
+        .map(|affected_groups| PurgeResult { affected_groups })
+        .map_err(repository_error)
+}
+
+#[tauri::command]
 pub(crate) fn reveal_field(
     field_id: String,
     state: State<'_, VaultState>,

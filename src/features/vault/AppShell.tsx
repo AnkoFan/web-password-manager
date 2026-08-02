@@ -5,7 +5,10 @@ import {
   DeleteConfirmDialog,
   type DeleteTarget,
 } from "./components/DeleteConfirmDialog"
-import { PrimaryNavigation, type VaultView } from "./components/PrimaryNavigation"
+import {
+  PrimaryNavigation,
+  type VaultView,
+} from "./components/PrimaryNavigation"
 import { SearchResults } from "./components/SearchResults"
 import { SettingsView } from "./components/SettingsView"
 import { TopBar } from "./components/TopBar"
@@ -44,9 +47,15 @@ export function AppShell() {
   const [websites, setWebsites] = useState<Website[]>([])
   const [entries, setEntries] = useState<VaultEntry[]>([])
   const [trashItems, setTrashItems] = useState<TrashItem[]>([])
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
-  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null)
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null,
+  )
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(
+    null,
+  )
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
+    null,
+  )
   const [selectedWebsiteIds, setSelectedWebsiteIds] = useState<Set<string>>(
     () => new Set(),
   )
@@ -60,7 +69,10 @@ export function AppShell() {
   const deleteTriggerRef = useRef<HTMLElement | null>(null)
 
   function captureDialogTrigger(ref: { current: HTMLElement | null }) {
-    ref.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    ref.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
   }
 
   function restoreDialogFocus(target: HTMLElement | null) {
@@ -122,7 +134,9 @@ export function AppShell() {
             )
           ? (preferred.categoryId ?? selectedCategoryId)
           : (sortedCategories[0]?.id ?? null)
-    const categoryWebsites = sortedWebsites.filter((website) => website.categoryId === categoryId)
+    const categoryWebsites = sortedWebsites.filter(
+      (website) => website.categoryId === categoryId,
+    )
     const nextEntries = (
       await Promise.all(
         categoryWebsites.map(async (website) => {
@@ -132,7 +146,10 @@ export function AppShell() {
             summaries.map((summary) => vaultClient.getAccount(summary.id)),
           )
           return sortVaultNames(
-            details.map((account) => ({ ...account, name: account.displayName })),
+            details.map((account) => ({
+              ...account,
+              name: account.displayName,
+            })),
           ).map((account) => ({ website, account }))
         }),
       )
@@ -150,11 +167,15 @@ export function AppShell() {
       preferred.accountId === null
         ? null
         : nextEntries.some(
-              (entry) => entry.account?.id === (preferred.accountId ?? selectedAccountId),
+              (entry) =>
+                entry.account?.id ===
+                (preferred.accountId ?? selectedAccountId),
             )
           ? (preferred.accountId ?? selectedAccountId)
           : (nextEntries.find((entry) => entry.account)?.account?.id ?? null)
-    const selectedEntry = nextEntries.find((entry) => entry.account?.id === accountId)
+    const selectedEntry = nextEntries.find(
+      (entry) => entry.account?.id === accountId,
+    )
 
     setSelectedCategoryId(categoryId)
     setSelectedWebsiteId(selectedEntry?.website.id ?? websiteId)
@@ -167,7 +188,8 @@ export function AppShell() {
     let active = true
     void refresh()
       .catch((error) => {
-        if (active) toast.error("无法读取保险库", { description: errorMessage(error) })
+        if (active)
+          toast.error("无法读取保险库", { description: errorMessage(error) })
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -207,7 +229,8 @@ export function AppShell() {
           if (active) setSearchResults(results)
         })
         .catch((error) => {
-          if (active) toast.error("搜索失败", { description: errorMessage(error) })
+          if (active)
+            toast.error("搜索失败", { description: errorMessage(error) })
         })
     }, 180)
     return () => {
@@ -233,7 +256,11 @@ export function AppShell() {
       await refresh({ categoryId: id })
     } else {
       const created = await vaultClient.createCategory(name)
-      await refresh({ categoryId: created.id, websiteId: null, accountId: null })
+      await refresh({
+        categoryId: created.id,
+        websiteId: null,
+        accountId: null,
+      })
     }
     toast.success("分类已保存")
   }
@@ -285,13 +312,25 @@ export function AppShell() {
     }
   }
 
-  async function restore(groupId: string) {
+  async function restore(groupIds: string[]) {
     try {
-      await vaultClient.restore(groupId)
+      await vaultClient.restoreMany(groupIds)
       await refresh()
-      toast.success("删除批次已恢复")
+      toast.success(`已恢复 ${groupIds.length} 个删除批次`)
     } catch (error) {
       toast.error("恢复失败", { description: errorMessage(error) })
+      throw error
+    }
+  }
+
+  async function permanentlyDelete(groupIds: string[]) {
+    try {
+      const result = await vaultClient.permanentlyDelete(groupIds)
+      await refresh()
+      toast.success(`已永久删除 ${result.affectedGroups} 个关联批次`)
+    } catch (error) {
+      toast.error("永久删除失败", { description: errorMessage(error) })
+      throw error
     }
   }
 
@@ -315,7 +354,9 @@ export function AppShell() {
   async function copyField(fieldId: string, label: string) {
     try {
       await vaultClient.copyField(fieldId)
-      toast.success(`已复制${label}`, { description: "通知中不会显示字段内容。" })
+      toast.success(`已复制${label}`, {
+        description: "通知中不会显示字段内容。",
+      })
     } catch (error) {
       toast.error("复制失败", { description: errorMessage(error) })
     }
@@ -383,7 +424,11 @@ export function AppShell() {
             onSelect={(result) => void selectSearchResult(result)}
           />
         ) : view === "trash" ? (
-          <TrashView items={trashItems} onRestore={restore} />
+          <TrashView
+            items={trashItems}
+            onRestore={restore}
+            onPermanentlyDelete={permanentlyDelete}
+          />
         ) : view === "settings" ? (
           <SettingsView />
         ) : (
@@ -396,7 +441,10 @@ export function AppShell() {
             revealed={revealed}
             onCreateWebsite={() =>
               selectedCategoryId
-                ? openEditor({ kind: "website", categoryId: selectedCategoryId })
+                ? openEditor({
+                    kind: "website",
+                    categoryId: selectedCategoryId,
+                  })
                 : undefined
             }
             onEditWebsite={(selectedWebsite) =>
@@ -412,7 +460,8 @@ export function AppShell() {
                 id: selectedWebsite.id,
                 name: selectedWebsite.name,
                 affectedCount: entries.filter(
-                  (entry) => entry.website.id === selectedWebsite.id && entry.account,
+                  (entry) =>
+                    entry.website.id === selectedWebsite.id && entry.account,
                 ).length,
               })
             }
@@ -422,7 +471,8 @@ export function AppShell() {
                 type: "website-batch",
                 ids: websiteIds,
                 affectedCount: entries.filter(
-                  (entry) => websiteIds.includes(entry.website.id) && entry.account,
+                  (entry) =>
+                    websiteIds.includes(entry.website.id) && entry.account,
                 ).length,
               })
             }
@@ -438,7 +488,9 @@ export function AppShell() {
               try {
                 await vaultClient.openWebsite(selectedWebsite.id)
               } catch (error) {
-                toast.error("无法打开网址", { description: errorMessage(error) })
+                toast.error("无法打开网址", {
+                  description: errorMessage(error),
+                })
               }
             }}
             onCopyField={copyField}
