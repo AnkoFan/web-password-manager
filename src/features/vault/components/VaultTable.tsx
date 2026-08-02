@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Eye,
   EyeOff,
@@ -88,9 +90,13 @@ type InlineAccountRowProps = Pick<
   website: Website
   account: AccountDetail | null
   firstWebsiteRow: boolean
+  hidden: boolean
   selected: boolean
   websiteSelected: boolean
+  additionalRowCount: number
+  rowsExpanded: boolean
   onAddRow: () => void
+  onToggleRows: () => void
   onEditWebsite: (website: Website) => void
   onDeleteWebsite: (website: Website) => void
   onWebsiteSelectedChange: (websiteId: string, selected: boolean) => void
@@ -101,8 +107,11 @@ function InlineAccountRow({
   website,
   account,
   firstWebsiteRow,
+  hidden,
   selected,
   websiteSelected,
+  additionalRowCount,
+  rowsExpanded,
   revealed,
   onSaveAccount,
   onDeleteAccount,
@@ -110,6 +119,7 @@ function InlineAccountRow({
   onToggleReveal,
   onCopyField,
   onAddRow,
+  onToggleRows,
   onEditWebsite,
   onDeleteWebsite,
   onWebsiteSelectedChange,
@@ -199,7 +209,7 @@ function InlineAccountRow({
   }
 
   return (
-    <tr className={cn((selected || websiteSelected) && "vault-row-selected", error && "vault-row-error")}>
+    <tr hidden={hidden} className={cn((selected || websiteSelected) && "vault-row-selected", error && "vault-row-error")}>
       <td data-label="网站">
         {firstWebsiteRow ? (
           <div className="vault-website-cell">
@@ -216,9 +226,24 @@ function InlineAccountRow({
             <span className="vault-website-meta">
               <strong>{website.name}</strong>
               <small>{website.primaryUrl ?? "未设置网址"}</small>
-              <button type="button" className="vault-site-add-account" onClick={onAddRow}>
-                <Plus aria-hidden="true" /> 添加账号
-              </button>
+              <span className="vault-site-account-controls">
+                <button type="button" className="vault-site-add-account" onClick={onAddRow}>
+                  <Plus aria-hidden="true" /> 添加账号
+                </button>
+                {additionalRowCount > 0 ? (
+                  <button
+                    type="button"
+                    className="vault-site-toggle-accounts"
+                    aria-label={`${rowsExpanded ? "收起" : "展开"}其余 ${additionalRowCount} 个账号`}
+                    aria-expanded={rowsExpanded}
+                    title={`${rowsExpanded ? "收起" : "展开"}其余 ${additionalRowCount} 个账号`}
+                    onClick={onToggleRows}
+                  >
+                    {rowsExpanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+                    <span aria-hidden="true">{additionalRowCount}</span>
+                  </button>
+                ) : null}
+              </span>
             </span>
             <div className="vault-inline-actions website-row-actions">
               <Button type="button" variant="ghost" size="icon-sm" aria-label={`编辑网站 ${website.name}`} onClick={() => onEditWebsite(website)}>
@@ -229,11 +254,7 @@ function InlineAccountRow({
               </Button>
             </div>
           </div>
-        ) : (
-          <button type="button" className="vault-add-account-link" onClick={onAddRow}>
-            <Plus aria-hidden="true" /> 添加账号
-          </button>
-        )}
+        ) : null}
       </td>
       <td data-label="名称">
         <Input
@@ -327,6 +348,7 @@ export function VaultTable({
   onCopyField,
 }: VaultTableProps) {
   const [draftRows, setDraftRows] = useState<Record<string, string[]>>({})
+  const [expandedWebsites, setExpandedWebsites] = useState<Set<string>>(() => new Set())
   const groups = useMemo(() => {
     const grouped = new Map<string, WebsiteGroup>()
     for (const entry of entries) {
@@ -337,11 +359,39 @@ export function VaultTable({
     return [...grouped.values()]
   }, [entries])
 
+  useEffect(() => {
+    if (!selectedAccountId) return
+    const selectedGroup = groups.find(({ accounts }) =>
+      accounts.some((account) => account.id === selectedAccountId),
+    )
+    if (!selectedGroup || selectedGroup.accounts[0]?.id === selectedAccountId) return
+    setExpandedWebsites((current) => {
+      if (current.has(selectedGroup.website.id)) return current
+      const next = new Set(current)
+      next.add(selectedGroup.website.id)
+      return next
+    })
+  }, [groups, selectedAccountId])
+
   function addDraftRow(websiteId: string) {
     setDraftRows((current) => ({
       ...current,
       [websiteId]: [...(current[websiteId] ?? []), crypto.randomUUID()],
     }))
+    setExpandedWebsites((current) => {
+      const next = new Set(current)
+      next.add(websiteId)
+      return next
+    })
+  }
+
+  function toggleWebsiteRows(websiteId: string) {
+    setExpandedWebsites((current) => {
+      const next = new Set(current)
+      if (next.has(websiteId)) next.delete(websiteId)
+      else next.add(websiteId)
+      return next
+    })
   }
 
   function removeDraftRow(websiteId: string, rowId: string) {
@@ -447,6 +497,8 @@ export function VaultTable({
                   ...(automaticEmptyRow ? [{ key: `empty-${website.id}`, account: null }] : []),
                   ...(draftRows[website.id] ?? []).map((key) => ({ key, account: null, removable: true })),
                 ]
+                const additionalRowCount = Math.max(0, rows.length - 1)
+                const rowsExpanded = expandedWebsites.has(website.id)
                 return rows.map((row, index) => (
                   <InlineAccountRow
                     key={row.key}
@@ -455,6 +507,8 @@ export function VaultTable({
                     firstWebsiteRow={index === 0}
                     selected={row.account?.id === selectedAccountId}
                     websiteSelected={selectedWebsiteIds.has(website.id)}
+                    additionalRowCount={additionalRowCount}
+                    rowsExpanded={rowsExpanded}
                     revealed={revealed}
                     onSaveAccount={onSaveAccount}
                     onDeleteAccount={onDeleteAccount}
@@ -462,10 +516,12 @@ export function VaultTable({
                     onToggleReveal={onToggleReveal}
                     onCopyField={onCopyField}
                     onAddRow={() => addDraftRow(website.id)}
+                    onToggleRows={() => toggleWebsiteRows(website.id)}
                     onEditWebsite={onEditWebsite}
                     onDeleteWebsite={onDeleteWebsite}
                     onWebsiteSelectedChange={setWebsiteSelected}
                     onRemoveDraft={row.removable ? () => removeDraftRow(website.id, row.key) : undefined}
+                    hidden={index > 0 && !rowsExpanded}
                   />
                 ))
               })}
