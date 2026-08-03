@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AppShell } from "@/features/vault/AppShell"
+import { applyAccentColor, DEFAULT_ACCENT_COLOR } from "@/features/vault/accent-colors"
 import { vaultClient } from "@/services/vault-client"
 import type { CloseBehavior } from "@/services/vault-client"
 
@@ -21,7 +22,11 @@ export function App() {
     setStartupError("")
     setState("loading")
     try {
-      await vaultClient.status()
+      const [, settings] = await Promise.all([
+        vaultClient.status(),
+        vaultClient.getAppSettings(),
+      ])
+      applyAccentColor(settings?.accentColor ?? DEFAULT_ACCENT_COLOR)
       if (isActive()) setState("ready")
     } catch (error) {
       if (isActive()) {

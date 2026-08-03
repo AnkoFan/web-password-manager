@@ -52,6 +52,21 @@ export function PrimaryNavigation({
         </div>
       </div>
 
+      <nav aria-label="主导航" className="nav-items">
+        {navigation.map(({ view, label, icon: Icon }) => (
+          <button
+            type="button"
+            key={view}
+            className={cn("nav-item", activeView === view && "nav-item-active")}
+            aria-current={activeView === view ? "page" : undefined}
+            onClick={() => onNavigate(view)}
+          >
+            <Icon aria-hidden="true" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+
       <section className="category-sidebar" aria-label="分类">
         <div className="category-sidebar-heading">
           <span>分类</span>
@@ -100,20 +115,6 @@ export function PrimaryNavigation({
         ) : null}
       </section>
 
-      <nav aria-label="主导航" className="nav-items">
-        {navigation.map(({ view, label, icon: Icon }) => (
-          <button
-            type="button"
-            key={view}
-            className={cn("nav-item", activeView === view && "nav-item-active")}
-            aria-label={label}
-            title={label}
-            onClick={() => onNavigate(view)}
-          >
-            <Icon aria-hidden="true" />
-          </button>
-        ))}
-      </nav>
     </aside>
   )
 }

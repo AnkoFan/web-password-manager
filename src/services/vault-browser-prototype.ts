@@ -30,6 +30,7 @@ let trash: TrashItem[] = []
 let settings: AppSettings = {
   clipboardClearSeconds: 30,
   closeBehavior: "ask",
+  accentColor: "oceanBlue",
 }
 
 type PrototypeBackup = {
@@ -623,7 +624,10 @@ export function updateAppSettings(next: AppSettings) {
     !Number.isInteger(next.clipboardClearSeconds) ||
     next.clipboardClearSeconds < 5 ||
     next.clipboardClearSeconds > 300 ||
-    !["ask", "exit", "minimizeToTray"].includes(next.closeBehavior)
+    !["ask", "exit", "minimizeToTray"].includes(next.closeBehavior) ||
+    !["oceanBlue", "indigo", "violet", "rose", "amber", "teal"].includes(
+      next.accentColor,
+    )
   ) {
     throw new VaultClientError("invalid_app_settings", "应用设置超出允许范围")
   }

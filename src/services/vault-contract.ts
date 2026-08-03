@@ -92,9 +92,18 @@ export type TrashItem = {
 export type AppSettings = {
   clipboardClearSeconds: number
   closeBehavior: CloseBehavior
+  accentColor: AccentColor
 }
 
 export type CloseBehavior = "ask" | "exit" | "minimizeToTray"
+
+export type AccentColor =
+  | "oceanBlue"
+  | "indigo"
+  | "violet"
+  | "rose"
+  | "amber"
+  | "teal"
 
 export type BackupInfo = {
   id: string

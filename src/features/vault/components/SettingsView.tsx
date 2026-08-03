@@ -4,6 +4,7 @@ import {
   CopyCheck,
   Database,
   HardDriveDownload,
+  Palette,
   PanelTopClose,
   ShieldCheck,
 } from "lucide-react"
@@ -39,6 +40,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { ACCENT_COLORS, applyAccentColor } from "@/features/vault/accent-colors"
 import { vaultClient, type AppSettings, type BackupInfo } from "@/services/vault-client"
 
 function errorMessage(error: unknown) {
@@ -82,6 +85,21 @@ export function SettingsView() {
     }
   }
 
+  async function changeAccentColor(accentColor: AppSettings["accentColor"]) {
+    if (!settings || accentColor === settings.accentColor) return
+    const previous = settings
+    const next = { ...settings, accentColor }
+    setSettings(next)
+    applyAccentColor(accentColor)
+    try {
+      setSettings(await vaultClient.updateAppSettings(next))
+    } catch (error) {
+      setSettings(previous)
+      applyAccentColor(previous.accentColor)
+      toast.error("无法保存外观设置", { description: errorMessage(error) })
+    }
+  }
+
   async function createBackup() {
     setCreatingBackup(true)
     try {
@@ -118,10 +136,56 @@ export function SettingsView() {
       <header>
         <p>本地设置</p>
         <h1>设置</h1>
-        <span>调整窗口关闭行为和剪贴板清理，并管理仅保存在本机的自动加密数据库备份。</span>
+        <span>调整界面外观、窗口关闭行为和剪贴板清理，并管理仅保存在本机的自动加密数据库备份。</span>
       </header>
 
       <div className="settings-grid">
+        <Card className="appearance-card">
+          <CardHeader className="appearance-card-header">
+            <span className="appearance-card-icon">
+              <Palette aria-hidden="true" />
+            </span>
+            <div>
+              <CardTitle>外观</CardTitle>
+              <CardDescription>
+                选择只影响选中状态、主按钮和焦点提示的颜色。
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="appearance-card-content">
+            <Field>
+              <FieldLabel>界面强调色</FieldLabel>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={settings.accentColor}
+                aria-label="界面强调色"
+                className="accent-color-options"
+                onValueChange={(value) => {
+                  if (value) void changeAccentColor(value as AppSettings["accentColor"])
+                }}
+              >
+                {ACCENT_COLORS.map((accent) => (
+                  <ToggleGroupItem
+                    key={accent.value}
+                    value={accent.value}
+                    aria-label={accent.label}
+                    className="accent-color-option"
+                  >
+                    <span
+                      className="accent-color-swatch"
+                      style={{ backgroundColor: accent.color }}
+                      aria-hidden="true"
+                    />
+                    <span>{accent.label}</span>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <p className="settings-empty">选择后即时生效并自动保存。</p>
+            </Field>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Windows 自动加密</CardTitle>
