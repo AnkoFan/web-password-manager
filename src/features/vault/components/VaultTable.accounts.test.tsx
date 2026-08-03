@@ -83,6 +83,21 @@ function renderTable(entries: VaultEntry[], filterQuery = "") {
 }
 
 describe("VaultTable account grouping", () => {
+  it("keeps account inputs equal and exposes compact icon-only row actions", () => {
+    renderTable([{ website, account: account("TEST-ONLY-ACCOUNT-1", "虚构账号") }])
+
+    expect(screen.getByLabelText("虚构网站 的账号名称")).toHaveClass("vault-account-input")
+    expect(screen.getByLabelText("虚构网站 的登录账号")).toHaveClass("vault-account-input")
+    expect(screen.getByLabelText("虚构网站 的密码")).toHaveClass("vault-account-input")
+
+    for (const label of ["保存账号", "打开网址", "删除账号"]) {
+      const action = screen.getByRole("button", { name: label })
+      expect(action).toHaveAttribute("data-size", "icon-sm")
+      expect(action).toHaveAttribute("title", label)
+      expect(action).toHaveTextContent("")
+    }
+  })
+
   it("shows one add control and collapses continuation account rows", () => {
     const firstAccount = account("TEST-ONLY-ACCOUNT-1", "虚构账号一")
     const secondAccount = account("TEST-ONLY-ACCOUNT-2", "虚构账号二")

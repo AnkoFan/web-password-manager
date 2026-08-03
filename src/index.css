@@ -339,7 +339,7 @@
   }
 
   .vault-table {
-    @apply w-full table-fixed border-collapse text-left;
+    @apply w-full min-w-[62rem] table-fixed border-collapse text-left;
   }
 
   .vault-table th {
@@ -355,23 +355,23 @@
   }
 
   .vault-table th:nth-child(1) {
-    width: 25%;
+    width: 15rem;
   }
 
   .vault-table th:nth-child(2) {
-    width: 14%;
+    width: 10.5rem;
   }
 
   .vault-table th:nth-child(3) {
-    width: 18%;
+    width: 13rem;
   }
 
   .vault-table th:nth-child(4) {
-    width: 17%;
+    width: 16rem;
   }
 
   .vault-table th:nth-child(5) {
-    width: 26%;
+    width: 7.5rem;
   }
 
   .vault-table td {
@@ -538,6 +538,13 @@
 
   .vault-inline-field input {
     @apply min-w-0 flex-1;
+  }
+
+  .vault-account-input {
+    width: 8rem;
+    min-width: 8rem;
+    max-width: 8rem;
+    flex: 0 0 8rem;
   }
 
   .vault-row-actions {
@@ -998,16 +1005,6 @@
   .vault-table th,
   .vault-table td {
     padding-inline: 0.875rem;
-  }
-
-  .vault-row-actions button {
-    width: 2.25rem;
-    padding-inline: 0;
-    font-size: 0;
-  }
-
-  .vault-row-actions button svg {
-    margin: 0;
   }
 
   .account-detail {

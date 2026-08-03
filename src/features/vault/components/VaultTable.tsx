@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ComponentProps } from "react"
 import {
   Check,
   ChevronDown,
@@ -29,6 +29,18 @@ import type {
 import { vaultTextKey } from "@/services/vault-order"
 
 import { PasswordGeneratorButton } from "./PasswordGeneratorButton"
+
+type IconActionButtonProps = Omit<ComponentProps<typeof Button>, "aria-label" | "size" | "title"> & {
+  label: string
+}
+
+function IconActionButton({ label, children, ...props }: IconActionButtonProps) {
+  return (
+    <Button {...props} size="icon-sm" aria-label={label} title={label}>
+      {children}
+    </Button>
+  )
+}
 
 export type VaultEntry = {
   website: Website
@@ -291,6 +303,7 @@ function InlineAccountRow({
       </td>
       <td data-label="名称">
         <Input
+          className="vault-account-input"
           aria-label={`${website.name} 的账号名称`}
           placeholder="例如：工作账号"
           value={name}
@@ -300,6 +313,7 @@ function InlineAccountRow({
       <td data-label="账号">
         <div className="vault-inline-field">
           <Input
+            className="vault-account-input"
             aria-label={`${website.name} 的登录账号`}
             placeholder={usernameField?.isSensitive && !revealedUsername ? "已保存（输入新账号替换）" : "用户名或邮箱"}
             value={usernameValue}
@@ -318,6 +332,7 @@ function InlineAccountRow({
       <td data-label="密码">
         <div className="vault-inline-field">
           <Input
+            className="vault-account-input"
             aria-label={`${website.name} 的密码`}
             type={passwordVisible ? "text" : "password"}
             placeholder={account && passwordField ? "已保存（输入新密码替换）" : "输入密码"}
@@ -347,22 +362,37 @@ function InlineAccountRow({
       </td>
       <td data-label="操作">
         <div className="vault-row-actions">
-          <Button type="button" size="sm" disabled={pending} onClick={() => void save()}>
-            <Check data-icon="inline-start" />
-            {pending ? "保存中…" : "保存"}
-          </Button>
-          <Button type="button" variant="outline" size="sm" disabled={!website.primaryUrl} onClick={() => void onOpenWebsite(website)}>
-            <ExternalLink data-icon="inline-start" />
-            打开网址
-          </Button>
+          <IconActionButton
+            type="button"
+            label={pending ? "正在保存账号" : "保存账号"}
+            disabled={pending}
+            onClick={() => void save()}
+          >
+            <Check />
+          </IconActionButton>
+          <IconActionButton
+            type="button"
+            label="打开网址"
+            variant="outline"
+            disabled={!website.primaryUrl}
+            onClick={() => void onOpenWebsite(website)}
+          >
+            <ExternalLink />
+          </IconActionButton>
           {account ? (
-            <Button type="button" variant="ghost" size="sm" className="vault-delete-action" onClick={() => onDeleteAccount(account)}>
-              <Trash2 data-icon="inline-start" /> 删除
-            </Button>
+            <IconActionButton
+              type="button"
+              label="删除账号"
+              variant="ghost"
+              className="vault-delete-action"
+              onClick={() => onDeleteAccount(account)}
+            >
+              <Trash2 />
+            </IconActionButton>
           ) : onRemoveDraft ? (
-            <Button type="button" variant="ghost" size="sm" onClick={onRemoveDraft}>
-              <X data-icon="inline-start" /> 取消
-            </Button>
+            <IconActionButton type="button" label="取消新增账号" variant="ghost" onClick={onRemoveDraft}>
+              <X />
+            </IconActionButton>
           ) : null}
         </div>
         {error ? <p className="vault-row-error-message">{error}</p> : null}
