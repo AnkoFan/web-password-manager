@@ -218,6 +218,16 @@ impl FieldDraft {
         {
             return Err(DomainError::PasswordMustBeSensitive);
         }
+        if system_role == Some(SystemRole::Email)
+            && (field_type != FieldType::Email || is_sensitive)
+        {
+            return Err(DomainError::InvalidSystemFieldConfiguration);
+        }
+        if system_role == Some(SystemRole::Note)
+            && (field_type != FieldType::Multiline || is_sensitive)
+        {
+            return Err(DomainError::InvalidSystemFieldConfiguration);
+        }
         Ok(Self {
             id,
             system_role,
@@ -325,6 +335,7 @@ pub(crate) enum DomainError {
     InvalidSystemRole,
     FieldValueTooLong { max_bytes: usize },
     PasswordMustBeSensitive,
+    InvalidSystemFieldConfiguration,
     DuplicateFieldLabel,
     DuplicateSystemRole,
     InvalidFieldValueState,
@@ -349,6 +360,9 @@ impl fmt::Display for DomainError {
                 write!(formatter, "字段内容不能超过 {max_bytes} 字节")
             }
             Self::PasswordMustBeSensitive => formatter.write_str("密码字段必须标记为敏感"),
+            Self::InvalidSystemFieldConfiguration => {
+                formatter.write_str("系统字段类型或敏感属性无效")
+            }
             Self::DuplicateFieldLabel => formatter.write_str("同一账号内不能有重复字段名称"),
             Self::DuplicateSystemRole => formatter.write_str("同一账号内不能有重复系统字段"),
             Self::InvalidFieldValueState => formatter.write_str("字段值状态无效"),
@@ -409,5 +423,53 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error, DomainError::PasswordMustBeSensitive);
+    }
+
+    #[test]
+    fn email_and_note_system_fields_have_fixed_safe_shapes() {
+        let email_error = FieldDraft::validate(
+            None,
+            Some("email"),
+            "主邮箱",
+            "text",
+            Some("demo@example.test".into()),
+            false,
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(email_error, DomainError::InvalidSystemFieldConfiguration);
+
+        let note_error = FieldDraft::validate(
+            None,
+            Some("note"),
+            "备注",
+            "multiline",
+            Some("仅供测试".into()),
+            false,
+            true,
+        )
+        .unwrap_err();
+        assert_eq!(note_error, DomainError::InvalidSystemFieldConfiguration);
+
+        assert!(FieldDraft::validate(
+            None,
+            Some("email"),
+            "主邮箱",
+            "email",
+            Some("demo@example.test".into()),
+            false,
+            false,
+        )
+        .is_ok());
+        assert!(FieldDraft::validate(
+            None,
+            Some("note"),
+            "备注",
+            "multiline",
+            Some("仅供测试".into()),
+            false,
+            false,
+        )
+        .is_ok());
     }
 }

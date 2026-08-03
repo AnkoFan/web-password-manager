@@ -5,6 +5,7 @@ import {
   DeleteConfirmDialog,
   type DeleteTarget,
 } from "./components/DeleteConfirmDialog"
+import { AccountDetailDialog } from "./components/AccountDetailDialog"
 import {
   PrimaryNavigation,
   type VaultView,
@@ -23,6 +24,7 @@ import { shouldFocusGlobalSearch } from "./keyboard"
 import {
   vaultClient,
   type AccountDraft,
+  type AccountDetail,
   type Category,
   type SearchResult,
   type TrashItem,
@@ -63,9 +65,14 @@ export function AppShell() {
   const [query, setQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [editor, setEditor] = useState<EditorState | null>(null)
+  const [accountEditor, setAccountEditor] = useState<{
+    account: AccountDetail
+    websiteName: string
+  } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [loading, setLoading] = useState(true)
   const editorTriggerRef = useRef<HTMLElement | null>(null)
+  const accountEditorTriggerRef = useRef<HTMLElement | null>(null)
   const deleteTriggerRef = useRef<HTMLElement | null>(null)
 
   function captureDialogTrigger(ref: { current: HTMLElement | null }) {
@@ -100,6 +107,18 @@ export function AppShell() {
   function openDeleteDialog(target: DeleteTarget) {
     captureDialogTrigger(deleteTriggerRef)
     setDeleteTarget(target)
+  }
+
+  function openAccountEditor(account: AccountDetail, websiteName: string) {
+    captureDialogTrigger(accountEditorTriggerRef)
+    setAccountEditor({ account, websiteName })
+  }
+
+  function closeAccountEditor() {
+    const trigger = accountEditorTriggerRef.current
+    accountEditorTriggerRef.current = null
+    setAccountEditor(null)
+    restoreDialogFocus(trigger)
   }
 
   function closeDeleteDialog() {
@@ -477,6 +496,9 @@ export function AppShell() {
               })
             }
             onSaveAccount={saveAccount}
+            onEditAccount={(account, website) =>
+              openAccountEditor(account, website.name)
+            }
             onDeleteAccount={(selectedAccount) =>
               openDeleteDialog({
                 type: "account",
@@ -511,6 +533,18 @@ export function AppShell() {
           onClose={closeEditor}
           onSaveCategory={saveCategory}
           onSaveWebsite={saveWebsite}
+        />
+      ) : null}
+      {accountEditor ? (
+        <AccountDetailDialog
+          key={accountEditor.account.id}
+          account={accountEditor.account}
+          websiteName={accountEditor.websiteName}
+          revealed={revealed}
+          onClose={closeAccountEditor}
+          onSave={saveAccount}
+          onToggleReveal={toggleReveal}
+          onCopyField={copyField}
         />
       ) : null}
       {deleteTarget ? (

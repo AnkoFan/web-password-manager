@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AppShell } from "@/features/vault/AppShell"
 import { vaultClient } from "@/services/vault-client"
+import type { CloseBehavior } from "@/services/vault-client"
+
+import { CloseBehaviorDialog } from "./CloseBehaviorDialog"
 
 type AppState = "loading" | "ready" | "recovery"
 
 export function App() {
   const [state, setState] = useState<AppState>("loading")
   const [startupError, setStartupError] = useState("")
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
 
   const checkStatus = useCallback(async (isActive: () => boolean = () => true) => {
     setStartupError("")
@@ -34,6 +39,42 @@ export function App() {
     }
   }, [checkStatus])
 
+  useEffect(() => {
+    let active = true
+    let stopListening: () => void = () => undefined
+    void vaultClient
+      .onCloseRequested(() => {
+        if (active) setCloseDialogOpen(true)
+      })
+      .then((unlisten) => {
+        if (active) stopListening = unlisten
+        else unlisten()
+      })
+      .catch((error: unknown) => {
+        toast.error("无法监听窗口关闭操作", {
+          description: error instanceof Error ? error.message : "请重启应用后重试。",
+        })
+      })
+    return () => {
+      active = false
+      stopListening()
+    }
+  }, [])
+
+  async function chooseCloseBehavior(action: Exclude<CloseBehavior, "ask">) {
+    try {
+      const current = await vaultClient.getAppSettings()
+      await vaultClient.updateAppSettings({ ...current, closeBehavior: action })
+      await vaultClient.applyCloseAction(action)
+      setCloseDialogOpen(false)
+    } catch (error) {
+      toast.error("无法应用关闭行为", {
+        description: error instanceof Error ? error.message : "请重试。",
+      })
+      throw error
+    }
+  }
+
   return (
     <TooltipProvider>
       {state === "loading" ? (
@@ -55,6 +96,11 @@ export function App() {
       ) : (
         <AppShell />
       )}
+      <CloseBehaviorDialog
+        open={closeDialogOpen}
+        onCancel={() => setCloseDialogOpen(false)}
+        onChoose={chooseCloseBehavior}
+      />
       <Toaster position="bottom-right" />
     </TooltipProvider>
   )

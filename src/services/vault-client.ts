@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
+import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import { openUrl } from "@tauri-apps/plugin-opener"
 
 import {
@@ -9,6 +10,7 @@ import {
   type AppSettings,
   type BackupInfo,
   type Category,
+  type CloseBehavior,
   type PasswordGeneratorOptions,
   type SearchResult,
   type TrashItem,
@@ -26,6 +28,7 @@ export {
   type AppSettings,
   type BackupInfo,
   type Category,
+  type CloseBehavior,
   type FieldType,
   type PasswordGeneratorOptions,
   type SearchResult,
@@ -264,6 +267,17 @@ export const vaultClient = {
       "update_app_settings",
       { settings },
       async () => (await browserPrototype()).updateAppSettings(settings),
+    )
+  },
+
+  onCloseRequested(handler: () => void): Promise<UnlistenFn> {
+    if (!isTauriRuntime()) return Promise.resolve(() => undefined)
+    return listen("app-close-requested", handler)
+  },
+
+  async applyCloseAction(action: Exclude<CloseBehavior, "ask">) {
+    await desktopOrPrototype("apply_close_action", { action }, async () =>
+      (await browserPrototype()).applyCloseAction(),
     )
   },
 

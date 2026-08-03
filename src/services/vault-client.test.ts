@@ -37,13 +37,29 @@ describe("browser prototype local database", () => {
           value: "fictional-secret",
           isSensitive: true,
         },
+        {
+          systemRole: "email",
+          label: "主邮箱",
+          fieldType: "email",
+          value: "m5-mailbox@example.test",
+          isSensitive: false,
+        },
+        {
+          systemRole: "note",
+          label: "备注",
+          fieldType: "multiline",
+          value: "TEST-ONLY-NOTE-NOT-SEARCHABLE",
+          isSensitive: false,
+        },
       ],
     })
 
     expect(account.fields[1].value).toBeNull()
     await expect(vaultClient.revealField(account.fields[1].id)).resolves.toBe("fictional-secret")
     await expect(vaultClient.search("fictional@example")).resolves.toHaveLength(1)
+    await expect(vaultClient.search("m5-mailbox")).resolves.toHaveLength(1)
     await expect(vaultClient.search("fictional-secret")).resolves.toHaveLength(0)
+    await expect(vaultClient.search("TEST-ONLY-NOTE-NOT-SEARCHABLE")).resolves.toHaveLength(0)
 
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, "clipboard", {
@@ -52,6 +68,8 @@ describe("browser prototype local database", () => {
     })
     await vaultClient.copyField(account.fields[1].id)
     expect(writeText).toHaveBeenLastCalledWith("fictional-secret")
+    await vaultClient.copyField(account.fields[2].id)
+    expect(writeText).toHaveBeenLastCalledWith("m5-mailbox@example.test")
 
     await vaultClient.deleteWebsite(website.id)
     const trash = await vaultClient.listTrash()
@@ -61,11 +79,18 @@ describe("browser prototype local database", () => {
     await expect(vaultClient.listAccounts(website.id)).resolves.toHaveLength(1)
   })
 
-  it("keeps clipboard settings and restores an in-memory prototype backup", async () => {
+  it("keeps local settings and restores an in-memory prototype backup", async () => {
     await expect(
-      vaultClient.updateAppSettings({ clipboardClearSeconds: 0 }),
+      vaultClient.updateAppSettings({ clipboardClearSeconds: 0, closeBehavior: "ask" }),
     ).rejects.toThrow("应用设置超出允许范围")
-    await vaultClient.updateAppSettings({ clipboardClearSeconds: 5 })
+    await vaultClient.updateAppSettings({
+      clipboardClearSeconds: 5,
+      closeBehavior: "minimizeToTray",
+    })
+    await expect(vaultClient.getAppSettings()).resolves.toEqual({
+      clipboardClearSeconds: 5,
+      closeBehavior: "minimizeToTray",
+    })
 
     const before = await vaultClient.createCategory("虚构备份前分类")
     const backup = await vaultClient.createBackup()

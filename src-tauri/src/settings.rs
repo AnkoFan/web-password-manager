@@ -10,12 +10,24 @@ const MAX_SETTINGS_BYTES: u64 = 16 * 1024;
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppSettings {
     pub(crate) clipboard_clear_seconds: u64,
+    #[serde(default)]
+    pub(crate) close_behavior: CloseBehavior,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum CloseBehavior {
+    #[default]
+    Ask,
+    Exit,
+    MinimizeToTray,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             clipboard_clear_seconds: 30,
+            close_behavior: CloseBehavior::Ask,
         }
     }
 }
@@ -75,5 +87,26 @@ mod tests {
         let mut settings = AppSettings::default();
         settings.clipboard_clear_seconds = 301;
         assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn legacy_settings_default_to_asking_before_close() {
+        let settings: AppSettings =
+            serde_json::from_str(r#"{"clipboardClearSeconds":30}"#).expect("legacy settings");
+
+        assert_eq!(settings.close_behavior, CloseBehavior::Ask);
+    }
+
+    #[test]
+    fn close_behavior_uses_stable_camel_case_values() {
+        let settings: AppSettings = serde_json::from_str(
+            r#"{"clipboardClearSeconds":30,"closeBehavior":"minimizeToTray"}"#,
+        )
+        .expect("current settings");
+
+        assert_eq!(settings.close_behavior, CloseBehavior::MinimizeToTray);
+        assert!(serde_json::to_string(&settings)
+            .expect("serialize settings")
+            .contains(r#""closeBehavior":"minimizeToTray""#));
     }
 }

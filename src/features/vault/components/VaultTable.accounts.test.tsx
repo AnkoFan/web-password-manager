@@ -70,6 +70,7 @@ function table(
       onWebsiteSelectionChange={vi.fn()}
       onDeleteSelectedWebsites={vi.fn()}
       onSaveAccount={onSaveAccount}
+      onEditAccount={vi.fn()}
       onDeleteAccount={vi.fn()}
       onOpenWebsite={vi.fn().mockResolvedValue(undefined)}
       onToggleReveal={vi.fn().mockResolvedValue(undefined)}
@@ -90,7 +91,7 @@ describe("VaultTable account grouping", () => {
     expect(screen.getByLabelText("虚构网站 的登录账号")).toHaveClass("vault-account-input")
     expect(screen.getByLabelText("虚构网站 的密码")).toHaveClass("vault-account-input")
 
-    for (const label of ["保存账号", "打开网址", "删除账号"]) {
+    for (const label of ["保存账号", "打开网址", "编辑账号详情", "删除账号"]) {
       const action = screen.getByRole("button", { name: label })
       expect(action).toHaveAttribute("data-size", "icon-sm")
       expect(action).toHaveAttribute("title", label)
@@ -130,17 +131,27 @@ describe("VaultTable account grouping", () => {
     const firstAccount = account("TEST-ONLY-ACCOUNT-1", "虚构账号一")
     const secondAccount = account("TEST-ONLY-ACCOUNT-2", "虚构账号二")
     secondAccount.fields.push({
-      id: "TEST-ONLY-SENSITIVE-NOTE",
+      id: "TEST-ONLY-NOTE",
       systemRole: "note",
-      label: "敏感备注",
-      fieldType: "text",
+      label: "备注",
+      fieldType: "multiline",
       value: "TEST-ONLY-HIDDEN-NEEDLE",
-      isSensitive: true,
+      isSensitive: false,
       sortOrder: 2,
+    })
+    secondAccount.fields.push({
+      id: "TEST-ONLY-EMAIL",
+      systemRole: "email",
+      label: "主邮箱",
+      fieldType: "email",
+      value: "m5-filter@example.test",
+      isSensitive: false,
+      sortOrder: 3,
     })
 
     expect(accountMatchesSafeFilter(secondAccount, "TEST-ONLY-ACCOUNT-2@example.test")).toBe(true)
     expect(accountMatchesSafeFilter(secondAccount, "TEST-ONLY-HIDDEN-NEEDLE")).toBe(false)
+    expect(accountMatchesSafeFilter(secondAccount, "m5-filter@example.test")).toBe(true)
 
     renderTable(
       [

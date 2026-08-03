@@ -1403,12 +1403,42 @@ mod tests {
         let website = repository
             .save_website(None, category.id, "示例", Some("https://example.test"))
             .unwrap();
+        let mut fields = example_fields();
+        fields.push(
+            FieldDraft::validate(
+                None,
+                Some("email"),
+                "主邮箱",
+                "email",
+                Some("m5-mailbox@example.test".into()),
+                false,
+                false,
+            )
+            .unwrap(),
+        );
+        fields.push(
+            FieldDraft::validate(
+                None,
+                Some("note"),
+                "备注",
+                "multiline",
+                Some("TEST-ONLY-NOTE-NOT-SEARCHABLE".into()),
+                false,
+                false,
+            )
+            .unwrap(),
+        );
         repository
-            .save_account(None, website.id, "账号", example_fields())
+            .save_account(None, website.id, "账号", fields)
             .unwrap();
 
         assert_eq!(repository.search("demo@example").unwrap().len(), 1);
+        assert_eq!(repository.search("m5-mailbox").unwrap().len(), 1);
         assert!(repository.search("fictional-secret").unwrap().is_empty());
+        assert!(repository
+            .search("TEST-ONLY-NOTE-NOT-SEARCHABLE")
+            .unwrap()
+            .is_empty());
     }
 
     #[test]

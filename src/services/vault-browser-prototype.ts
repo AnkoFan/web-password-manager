@@ -29,6 +29,7 @@ let accounts: StoredAccount[] = []
 let trash: TrashItem[] = []
 let settings: AppSettings = {
   clipboardClearSeconds: 30,
+  closeBehavior: "ask",
 }
 
 type PrototypeBackup = {
@@ -338,6 +339,18 @@ export function saveAccount(draft: AccountDraft): AccountDetail {
     ) {
       throw new VaultClientError("invalid_input", "密码字段必须标记为敏感")
     }
+    if (
+      field.systemRole === "email" &&
+      (field.fieldType !== "email" || field.isSensitive)
+    ) {
+      throw new VaultClientError("invalid_input", "主邮箱必须是非敏感邮箱字段")
+    }
+    if (
+      field.systemRole === "note" &&
+      (field.fieldType !== "multiline" || field.isSensitive)
+    ) {
+      throw new VaultClientError("invalid_input", "备注必须是非敏感多行字段")
+    }
     const previous = field.id
       ? current?.fields.find((entry) => entry.id === field.id)
       : undefined
@@ -609,12 +622,17 @@ export function updateAppSettings(next: AppSettings) {
   if (
     !Number.isInteger(next.clipboardClearSeconds) ||
     next.clipboardClearSeconds < 5 ||
-    next.clipboardClearSeconds > 300
+    next.clipboardClearSeconds > 300 ||
+    !["ask", "exit", "minimizeToTray"].includes(next.closeBehavior)
   ) {
     throw new VaultClientError("invalid_app_settings", "应用设置超出允许范围")
   }
   settings = { ...next }
   return getAppSettings()
+}
+
+export function applyCloseAction() {
+  // Browser development mode has no desktop window or system tray lifecycle.
 }
 
 export function listBackups(): BackupInfo[] {

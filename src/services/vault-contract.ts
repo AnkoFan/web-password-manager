@@ -91,7 +91,10 @@ export type TrashItem = {
 
 export type AppSettings = {
   clipboardClearSeconds: number
+  closeBehavior: CloseBehavior
 }
+
+export type CloseBehavior = "ask" | "exit" | "minimizeToTray"
 
 export type BackupInfo = {
   id: string
