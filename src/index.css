@@ -979,6 +979,62 @@
   .trash-confirm-description {
     @apply flex flex-col gap-2 text-left;
   }
+
+  .account-detail-dialog {
+    max-height: min(88vh, 760px);
+    overflow: hidden;
+  }
+
+  .account-detail-form {
+    @apply flex min-h-0 flex-col;
+  }
+
+  .account-detail-scroll {
+    @apply min-h-0 overflow-y-auto pr-1;
+    max-height: min(62vh, 560px);
+  }
+
+  .account-detail-grid,
+  .account-custom-field-grid {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .account-detail-value-row {
+    @apply flex min-w-0 items-start gap-1;
+  }
+
+  .account-detail-value-row > input,
+  .account-detail-value-row > textarea {
+    @apply min-w-0 flex-1;
+  }
+
+  .account-detail-value-row > button {
+    @apply shrink-0;
+  }
+
+  .account-custom-fields {
+    @apply flex flex-col gap-3;
+  }
+
+  .account-custom-field {
+    @apply flex flex-col gap-4 rounded-xl border bg-muted/20 p-4;
+  }
+
+  .account-custom-field-heading {
+    @apply flex items-center justify-between gap-3;
+  }
+
+  .account-custom-field-heading strong {
+    @apply text-sm font-medium;
+  }
+
+  .account-custom-field-actions {
+    @apply flex items-center gap-1;
+  }
+
+  .account-detail-footer {
+    @apply mt-4 border-t pt-4;
+  }
 }
 
 @media (max-width: 1120px) {
@@ -1350,6 +1406,11 @@
 
   .field-editor-row > :nth-child(5) {
     grid-column: 1;
+  }
+
+  .account-detail-grid,
+  .account-custom-field-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use zeroize::Zeroize;
 
@@ -14,7 +14,7 @@ use crate::{
         generate_password as create_password, PasswordGeneratorError, PasswordOptions,
     },
     repositories::{CategoryRepository, RepositoryError, VaultRepository},
-    settings::{save_settings, AppSettings},
+    settings::{save_settings, AppSettings, CloseBehavior},
     storage::{
         create_backup as create_backup_files, list_backups as load_backups,
         open_or_create_database, restore_backup as restore_backup_files, vault_paths,
@@ -677,6 +677,28 @@ pub(crate) fn update_app_settings(
         .map_err(|_| CommandError::new("session_unavailable", "应用设置状态不可用"))?;
     session.settings = settings.clone();
     Ok(settings)
+}
+
+#[tauri::command]
+pub(crate) fn apply_close_action(
+    app: AppHandle,
+    action: CloseBehavior,
+) -> Result<(), CommandError> {
+    match action {
+        CloseBehavior::Ask => Err(CommandError::new(
+            "invalid_close_action",
+            "请选择关闭程序或最小化至托盘",
+        )),
+        CloseBehavior::Exit => {
+            app.exit(0);
+            Ok(())
+        }
+        CloseBehavior::MinimizeToTray => app
+            .get_webview_window("main")
+            .ok_or_else(|| CommandError::new("window_unavailable", "主窗口不可用"))?
+            .hide()
+            .map_err(|_| CommandError::new("window_action_failed", "无法最小化至系统托盘")),
+    }
 }
 
 #[derive(Serialize)]

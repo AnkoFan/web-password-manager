@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react"
-import { ArchiveRestore, CopyCheck, Database, HardDriveDownload, ShieldCheck } from "lucide-react"
+import {
+  ArchiveRestore,
+  CopyCheck,
+  Database,
+  HardDriveDownload,
+  PanelTopClose,
+  ShieldCheck,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -111,7 +118,7 @@ export function SettingsView() {
       <header>
         <p>本地设置</p>
         <h1>设置</h1>
-        <span>调整剪贴板清理，并管理仅保存在本机的自动加密数据库备份。</span>
+        <span>调整窗口关闭行为和剪贴板清理，并管理仅保存在本机的自动加密数据库备份。</span>
       </header>
 
       <div className="settings-grid">
@@ -172,6 +179,53 @@ export function SettingsView() {
             <Button onClick={() => void save()} disabled={saving}>
               <CopyCheck data-icon="inline-start" />
               {saving ? "正在保存…" : "保存清理设置"}
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>关闭窗口时</CardTitle>
+            <CardDescription>
+              选择点击窗口关闭按钮时退出程序、保留在系统托盘，或每次都询问。
+            </CardDescription>
+            <CardAction>
+              <PanelTopClose aria-hidden="true" />
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <Field>
+              <FieldLabel>默认关闭行为</FieldLabel>
+              <Select
+                value={settings.closeBehavior}
+                onValueChange={(value) =>
+                  setSettings((current) =>
+                    current
+                      ? { ...current, closeBehavior: value as AppSettings["closeBehavior"] }
+                      : current,
+                  )
+                }
+              >
+                <SelectTrigger aria-label="默认关闭行为">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="ask">每次询问</SelectItem>
+                    <SelectItem value="minimizeToTray">最小化至托盘</SelectItem>
+                    <SelectItem value="exit">关闭程序</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <p className="settings-empty">
+              最小化至托盘后程序仍在运行，保险库在当前 Windows 用户会话中仍保持可访问。
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => void save()} disabled={saving}>
+              <PanelTopClose data-icon="inline-start" />
+              {saving ? "正在保存…" : "保存关闭设置"}
             </Button>
           </CardFooter>
         </Card>

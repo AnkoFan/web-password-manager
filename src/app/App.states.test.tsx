@@ -6,6 +6,10 @@ import { App } from "./App"
 
 const mocks = vi.hoisted(() => ({
   status: vi.fn(),
+  onCloseRequested: vi.fn(async () => () => undefined),
+  getAppSettings: vi.fn(),
+  updateAppSettings: vi.fn(),
+  applyCloseAction: vi.fn(),
 }))
 
 vi.mock("@/services/vault-client", () => ({
@@ -15,6 +19,10 @@ vi.mock("@/services/vault-client", () => ({
 afterEach(() => {
   cleanup()
   mocks.status.mockReset()
+  mocks.onCloseRequested.mockClear()
+  mocks.getAppSettings.mockReset()
+  mocks.updateAppSettings.mockReset()
+  mocks.applyCloseAction.mockReset()
 })
 
 describe("App startup states", () => {

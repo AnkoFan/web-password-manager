@@ -60,6 +60,7 @@ type VaultTableProps = {
   onWebsiteSelectionChange: (websiteIds: Set<string>) => void
   onDeleteSelectedWebsites: (websiteIds: string[]) => void
   onSaveAccount: (draft: AccountDraft) => Promise<void>
+  onEditAccount: (account: AccountDetail, website: Website) => void
   onDeleteAccount: (account: AccountDetail) => void
   onOpenWebsite: (website: Website) => Promise<void>
   onToggleReveal: (fieldId: string, label: string) => Promise<void>
@@ -85,9 +86,7 @@ export function accountMatchesSafeFilter(account: AccountDetail, query: string) 
 
 function systemField(account: AccountDetail | null, role: "username" | "password") {
   if (role === "username") {
-    return account?.fields.find((field) => field.systemRole === "username")
-      ?? account?.fields.find((field) => field.systemRole === "email")
-      ?? null
+    return account?.fields.find((field) => field.systemRole === "username") ?? null
   }
   return account?.fields.find(
     (field) => field.systemRole === "password" || field.fieldType === "password",
@@ -110,6 +109,7 @@ type InlineAccountRowProps = Pick<
   VaultTableProps,
   | "revealed"
   | "onSaveAccount"
+  | "onEditAccount"
   | "onDeleteAccount"
   | "onOpenWebsite"
   | "onToggleReveal"
@@ -142,6 +142,7 @@ function InlineAccountRow({
   rowsExpanded,
   revealed,
   onSaveAccount,
+  onEditAccount,
   onDeleteAccount,
   onOpenWebsite,
   onToggleReveal,
@@ -380,15 +381,25 @@ function InlineAccountRow({
             <ExternalLink />
           </IconActionButton>
           {account ? (
-            <IconActionButton
-              type="button"
-              label="删除账号"
-              variant="ghost"
-              className="vault-delete-action"
-              onClick={() => onDeleteAccount(account)}
-            >
-              <Trash2 />
-            </IconActionButton>
+            <>
+              <IconActionButton
+                type="button"
+                label="编辑账号详情"
+                variant="outline"
+                onClick={() => onEditAccount(account, website)}
+              >
+                <Pencil />
+              </IconActionButton>
+              <IconActionButton
+                type="button"
+                label="删除账号"
+                variant="ghost"
+                className="vault-delete-action"
+                onClick={() => onDeleteAccount(account)}
+              >
+                <Trash2 />
+              </IconActionButton>
+            </>
           ) : onRemoveDraft ? (
             <IconActionButton type="button" label="取消新增账号" variant="ghost" onClick={onRemoveDraft}>
               <X />
@@ -414,6 +425,7 @@ export function VaultTable({
   onWebsiteSelectionChange,
   onDeleteSelectedWebsites,
   onSaveAccount,
+  onEditAccount,
   onDeleteAccount,
   onOpenWebsite,
   onToggleReveal,
@@ -609,6 +621,7 @@ export function VaultTable({
                     rowsExpanded={rowsExpanded}
                     revealed={revealed}
                     onSaveAccount={onSaveAccount}
+                    onEditAccount={onEditAccount}
                     onDeleteAccount={onDeleteAccount}
                     onOpenWebsite={onOpenWebsite}
                     onToggleReveal={onToggleReveal}
