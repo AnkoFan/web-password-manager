@@ -2,7 +2,7 @@
 
 > 目标：在不改变 DPAPI/SQLCipher 存储边界的前提下，完成账号详情与灵活字段闭环
 >
-> 状态：M5.0–M5.5 完成 / `0.4.0-beta.2` 本地候选已冻结 / 仅虚构测试数据
+> 状态：M5.0–M5.5 完成 / `0.4.0-beta.2` 最终候选已冻结 / 远程 CI 已通过 / 仅虚构测试数据
 
 ## M5.0 基线与范围冻结
 
@@ -82,6 +82,7 @@
 - `WebPasswordManager_0.4.0-beta.2_x64-setup.exe` 大小为 216,776,719 字节，SHA-256 为 `A46AF7BA9B9DDE2FCA15F27D31096CFCB6B2FFF231E8DC617162EF7369AE03BC`。
 - 从 `0.4.0-beta.1` 覆盖安装成功，安装退出码 0；注册表与可执行文件版本均为 `0.4.0-beta.2`。
 - 覆盖安装及进程回归前后，DPAPI 密钥与 SQLCipher 数据库的大小、时间戳和 SHA-256 完全不变。
+- GitHub Actions 候选运行 `30794266854` 全部通过：前端质量门、Rust/DPAPI/SQLCipher 测试与 RustSec 审计均为绿色。
 
 ## 开发顺序
 
