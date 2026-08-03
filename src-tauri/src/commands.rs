@@ -10,6 +10,9 @@ use crate::{
         AccountDetail, AccountField, AccountSummary, Category, EntityId, FieldDraft, SearchResult,
         TrashItem, Website,
     },
+    password_generator::{
+        generate_password as create_password, PasswordGeneratorError, PasswordOptions,
+    },
     repositories::{CategoryRepository, RepositoryError, VaultRepository},
     settings::{save_settings, AppSettings},
     storage::{
@@ -406,6 +409,38 @@ pub(crate) fn delete_account(
         .map_err(repository_error)
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PasswordGeneratorInput {
+    length: usize,
+    lowercase: bool,
+    uppercase: bool,
+    digits: bool,
+    symbols: bool,
+}
+
+#[tauri::command]
+pub(crate) fn generate_password(options: PasswordGeneratorInput) -> Result<String, CommandError> {
+    create_password(PasswordOptions {
+        length: options.length,
+        lowercase: options.lowercase,
+        uppercase: options.uppercase,
+        digits: options.digits,
+        symbols: options.symbols,
+    })
+    .map_err(|error| match error {
+        PasswordGeneratorError::InvalidLength => {
+            CommandError::new("invalid_input", "密码长度必须在 8 到 128 个字符之间")
+        }
+        PasswordGeneratorError::MissingCharacterClass => {
+            CommandError::new("invalid_input", "请至少选择一种字符类型")
+        }
+        PasswordGeneratorError::RandomSourceUnavailable => {
+            CommandError::new("random_source_unavailable", "操作系统安全随机源不可用")
+        }
+    })
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SearchResultView {
@@ -482,6 +517,43 @@ pub(crate) fn restore_deletion_group(
     let mut session = require_connection(&state)?;
     VaultRepository::new(session.connection.as_mut().expect("checked above"))
         .restore_deletion_group(group_id)
+        .map_err(repository_error)
+}
+
+#[tauri::command]
+pub(crate) fn restore_deletion_groups(
+    group_ids: Vec<String>,
+    state: State<'_, VaultState>,
+) -> Result<(), CommandError> {
+    let group_ids = group_ids
+        .iter()
+        .map(|value| parse_id(value))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut session = require_connection(&state)?;
+    VaultRepository::new(session.connection.as_mut().expect("checked above"))
+        .restore_deletion_groups(&group_ids)
+        .map_err(repository_error)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PurgeResult {
+    affected_groups: usize,
+}
+
+#[tauri::command]
+pub(crate) fn permanently_delete_groups(
+    group_ids: Vec<String>,
+    state: State<'_, VaultState>,
+) -> Result<PurgeResult, CommandError> {
+    let group_ids = group_ids
+        .iter()
+        .map(|value| parse_id(value))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut session = require_connection(&state)?;
+    VaultRepository::new(session.connection.as_mut().expect("checked above"))
+        .permanently_delete_groups(&group_ids)
+        .map(|affected_groups| PurgeResult { affected_groups })
         .map_err(repository_error)
 }
 

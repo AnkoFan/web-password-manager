@@ -1,12 +1,12 @@
 # 安全测试计划
 
-> 状态：M3 `0.2.0-beta.1` 候选有效
+> 状态：M4 `0.3.0-beta.1` 候选验证中
 >
 > 最后更新日期：2026-08-02
 
 ## 范围与目标
 
-验证 Windows 桌面端在“SQLCipher 数据库 + 当前用户 DPAPI 保护随机数据库密钥 + 启动自动打开”的产品决策下，不把数据库或密钥以明文写入磁盘，并在文件损坏、文件对不完整、备份损坏和安装升级失败时停止覆盖。全程只使用明确标记的虚构测试数据。
+验证 Windows 桌面端在“SQLCipher 数据库 + 当前用户 DPAPI 保护随机数据库密钥 + 启动自动打开”的产品决策下，不把数据库或密钥以明文写入磁盘，并在文件损坏、文件对不完整、批量操作失败、备份损坏和安装升级失败时停止部分提交或覆盖。全程只使用明确标记的虚构测试数据。
 
 ## 测试层级
 
@@ -32,12 +32,15 @@
 - 加密备份在替换前验证两个文件、清单、摘要、DPAPI、SQLCipher 和 schema；失败恢复回滚原组合。
 - `npm.cmd run check:frontend`、npm audit、RustSec 和 Windows 生产构建通过。
 - 当前 UI 和命令契约不包含主密码、锁定、解锁、自动锁定或生命周期锁定入口。
+- 排序与筛选不读取密码或敏感自定义字段；密码生成器只使用系统安全随机源，结果默认隐藏且不会自动保存。
+- 批量恢复和永久删除只作用于明确选择，并在单一事务内完成；永久删除提示不得宣称 SSD、快照或备份安全擦除。
 - 候选安装包版本和三个项目清单一致，SHA-256 写入发布检查清单。
 
 ## 相关记录
 
 - [ADR-014：DPAPI + SQLCipher 自动打开](../00-foundation/12-ADR_DPAPI_SQLCIPHER_AUTO_OPEN.md)
 - [M3 执行计划](../00-foundation/09-PHASE_3_EXECUTION_PLAN.md)
+- [M4 执行计划](../00-foundation/14-PHASE_4_EXECUTION_PLAN.md)
 - [安全测试用例](../09-testing/SECURITY_TEST_CASES.md)
 - [发布检查清单](../09-testing/RELEASE_CHECKLIST.md)
-- [发布说明草案](../10-release-and-operations/RELEASE_NOTES_0.2.0-beta.1_DRAFT.md)
+- [发布说明草案](../10-release-and-operations/RELEASE_NOTES_0.3.0-beta.1_DRAFT.md)

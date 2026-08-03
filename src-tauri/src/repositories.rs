@@ -120,7 +120,7 @@ impl<'connection> CategoryRepository<'connection> {
                 "SELECT id, vault_id, name, sort_order, created_at, updated_at
                  FROM categories
                  WHERE deleted_at IS NULL
-                 ORDER BY sort_order, name_key, id",
+                 ORDER BY name_key, id",
             )
             .map_err(|_| RepositoryError::StorageUnavailable)?;
         let rows = statement
@@ -257,5 +257,21 @@ mod tests {
 
         let error = repository.rename(personal.id, "  ＷＯＲＫ  ").unwrap_err();
         assert_eq!(error, RepositoryError::CategoryAlreadyExists);
+    }
+
+    #[test]
+    fn categories_are_listed_by_normalized_name_instead_of_creation_order() {
+        let (_temp, mut connection) = test_connection();
+        let mut repository = CategoryRepository::new(&mut connection);
+        repository.create("Zulu").unwrap();
+        repository.create("Alpha").unwrap();
+
+        let names: Vec<_> = repository
+            .list_active()
+            .unwrap()
+            .into_iter()
+            .map(|category| category.name)
+            .collect();
+        assert_eq!(names, vec!["Alpha", "Zulu"]);
     }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ComponentProps } from "react"
 import {
   Check,
   ChevronDown,
@@ -26,6 +26,21 @@ import type {
   Category,
   Website,
 } from "@/services/vault-client"
+import { vaultTextKey } from "@/services/vault-order"
+
+import { PasswordGeneratorButton } from "./PasswordGeneratorButton"
+
+type IconActionButtonProps = Omit<ComponentProps<typeof Button>, "aria-label" | "size" | "title"> & {
+  label: string
+}
+
+function IconActionButton({ label, children, ...props }: IconActionButtonProps) {
+  return (
+    <Button {...props} size="icon-sm" aria-label={label} title={label}>
+      {children}
+    </Button>
+  )
+}
 
 export type VaultEntry = {
   website: Website
@@ -35,6 +50,7 @@ export type VaultEntry = {
 type VaultTableProps = {
   category: Category | null
   entries: VaultEntry[]
+  filterQuery?: string
   selectedAccountId: string | null
   selectedWebsiteIds: Set<string>
   revealed: Record<string, string>
@@ -53,6 +69,18 @@ type VaultTableProps = {
 type WebsiteGroup = {
   website: Website
   accounts: AccountDetail[]
+}
+
+export function accountMatchesSafeFilter(account: AccountDetail, query: string) {
+  const queryKey = vaultTextKey(query)
+  if (!queryKey) return true
+  if (vaultTextKey(account.displayName).includes(queryKey)) return true
+  return account.fields.some(
+    (field) =>
+      !field.isSensitive &&
+      (field.systemRole === "username" || field.systemRole === "email") &&
+      vaultTextKey(field.value ?? "").includes(queryKey),
+  )
 }
 
 function systemField(account: AccountDetail | null, role: "username" | "password") {
@@ -275,6 +303,7 @@ function InlineAccountRow({
       </td>
       <td data-label="名称">
         <Input
+          className="vault-account-input"
           aria-label={`${website.name} 的账号名称`}
           placeholder="例如：工作账号"
           value={name}
@@ -284,6 +313,7 @@ function InlineAccountRow({
       <td data-label="账号">
         <div className="vault-inline-field">
           <Input
+            className="vault-account-input"
             aria-label={`${website.name} 的登录账号`}
             placeholder={usernameField?.isSensitive && !revealedUsername ? "已保存（输入新账号替换）" : "用户名或邮箱"}
             value={usernameValue}
@@ -302,6 +332,7 @@ function InlineAccountRow({
       <td data-label="密码">
         <div className="vault-inline-field">
           <Input
+            className="vault-account-input"
             aria-label={`${website.name} 的密码`}
             type={passwordVisible ? "text" : "password"}
             placeholder={account && passwordField ? "已保存（输入新密码替换）" : "输入密码"}
@@ -314,6 +345,14 @@ function InlineAccountRow({
           <Button type="button" variant="ghost" size="icon-sm" aria-label={passwordVisible ? "隐藏密码" : "显示密码"} onClick={() => void togglePassword()}>
             {passwordVisible ? <EyeOff /> : <Eye />}
           </Button>
+          <PasswordGeneratorButton
+            onGenerated={(generatedPassword) => {
+              setPassword(generatedPassword)
+              setPasswordDirty(true)
+              setShowNewPassword(false)
+              setError("")
+            }}
+          />
           {account && passwordField ? (
             <Button type="button" variant="ghost" size="icon-sm" aria-label="复制密码" onClick={() => void onCopyField(passwordField.id, passwordField.label)}>
               <Copy />
@@ -323,22 +362,37 @@ function InlineAccountRow({
       </td>
       <td data-label="操作">
         <div className="vault-row-actions">
-          <Button type="button" size="sm" disabled={pending} onClick={() => void save()}>
-            <Check data-icon="inline-start" />
-            {pending ? "保存中…" : "保存"}
-          </Button>
-          <Button type="button" variant="outline" size="sm" disabled={!website.primaryUrl} onClick={() => void onOpenWebsite(website)}>
-            <ExternalLink data-icon="inline-start" />
-            打开网址
-          </Button>
+          <IconActionButton
+            type="button"
+            label={pending ? "正在保存账号" : "保存账号"}
+            disabled={pending}
+            onClick={() => void save()}
+          >
+            <Check />
+          </IconActionButton>
+          <IconActionButton
+            type="button"
+            label="打开网址"
+            variant="outline"
+            disabled={!website.primaryUrl}
+            onClick={() => void onOpenWebsite(website)}
+          >
+            <ExternalLink />
+          </IconActionButton>
           {account ? (
-            <Button type="button" variant="ghost" size="sm" className="vault-delete-action" onClick={() => onDeleteAccount(account)}>
-              <Trash2 data-icon="inline-start" /> 删除
-            </Button>
+            <IconActionButton
+              type="button"
+              label="删除账号"
+              variant="ghost"
+              className="vault-delete-action"
+              onClick={() => onDeleteAccount(account)}
+            >
+              <Trash2 />
+            </IconActionButton>
           ) : onRemoveDraft ? (
-            <Button type="button" variant="ghost" size="sm" onClick={onRemoveDraft}>
-              <X data-icon="inline-start" /> 取消
-            </Button>
+            <IconActionButton type="button" label="取消新增账号" variant="ghost" onClick={onRemoveDraft}>
+              <X />
+            </IconActionButton>
           ) : null}
         </div>
         {error ? <p className="vault-row-error-message">{error}</p> : null}
@@ -350,6 +404,7 @@ function InlineAccountRow({
 export function VaultTable({
   category,
   entries,
+  filterQuery = "",
   selectedAccountId,
   selectedWebsiteIds,
   revealed,
@@ -366,6 +421,7 @@ export function VaultTable({
 }: VaultTableProps) {
   const [draftRows, setDraftRows] = useState<Record<string, string[]>>({})
   const [expandedWebsites, setExpandedWebsites] = useState<Set<string>>(() => new Set())
+  const filterKey = vaultTextKey(filterQuery)
   const groups = useMemo(() => {
     const grouped = new Map<string, WebsiteGroup>()
     for (const entry of entries) {
@@ -436,8 +492,19 @@ export function VaultTable({
   }
 
   const accountCount = entries.filter((entry) => entry.account).length
-  const selectedCount = groups.filter(({ website }) => selectedWebsiteIds.has(website.id)).length
-  const allWebsitesSelected = groups.length > 0 && selectedCount === groups.length
+  const visibleWebsiteIds = new Set(
+    groups
+      .filter(
+        ({ website, accounts }) =>
+          !filterKey ||
+          vaultTextKey(website.name).includes(filterKey) ||
+          accounts.some((account) => accountMatchesSafeFilter(account, filterKey)),
+      )
+      .map(({ website }) => website.id),
+  )
+  const visibleWebsiteCount = visibleWebsiteIds.size
+  const selectedCount = [...visibleWebsiteIds].filter((id) => selectedWebsiteIds.has(id)).length
+  const allWebsitesSelected = visibleWebsiteCount > 0 && selectedCount === visibleWebsiteCount
   const someWebsitesSelected = selectedCount > 0 && !allWebsitesSelected
 
   return (
@@ -457,7 +524,10 @@ export function VaultTable({
                 onDeleteSelectedWebsites(
                   groups
                     .map(({ website }) => website.id)
-                    .filter((websiteId) => selectedWebsiteIds.has(websiteId)),
+                    .filter(
+                      (websiteId) =>
+                        visibleWebsiteIds.has(websiteId) && selectedWebsiteIds.has(websiteId),
+                    ),
                 )
               }
             >
@@ -492,7 +562,7 @@ export function VaultTable({
                       onCheckedChange={(checked) =>
                         onWebsiteSelectionChange(
                           checked === true
-                            ? new Set(groups.map(({ website }) => website.id))
+                            ? new Set(visibleWebsiteIds)
                             : new Set(),
                         )
                       }
@@ -508,6 +578,8 @@ export function VaultTable({
             </thead>
             <tbody>
               {groups.flatMap(({ website, accounts }) => {
+                const websiteMatches = vaultTextKey(website.name).includes(filterKey)
+                const groupVisible = visibleWebsiteIds.has(website.id)
                 const automaticEmptyRow = accounts.length === 0
                 const rows: Array<{ key: string; account: AccountDetail | null; removable?: boolean }> = [
                   ...accounts.map((account) => ({ key: account.id, account })),
@@ -516,12 +588,21 @@ export function VaultTable({
                 ]
                 const additionalRowCount = Math.max(0, rows.length - 1)
                 const rowsExpanded = expandedWebsites.has(website.id)
+                const visibleRowIndexes = rows
+                  .map((row, index) =>
+                    groupVisible &&
+                    (!filterKey || websiteMatches || !row.account || accountMatchesSafeFilter(row.account, filterKey))
+                      ? index
+                      : -1,
+                  )
+                  .filter((index) => index >= 0)
+                const firstVisibleIndex = visibleRowIndexes[0] ?? -1
                 return rows.map((row, index) => (
                   <InlineAccountRow
                     key={row.key}
                     website={website}
                     account={row.account}
-                    firstWebsiteRow={index === 0}
+                    firstWebsiteRow={index === firstVisibleIndex}
                     selected={row.account?.id === selectedAccountId}
                     websiteSelected={selectedWebsiteIds.has(website.id)}
                     additionalRowCount={additionalRowCount}
@@ -538,10 +619,21 @@ export function VaultTable({
                     onDeleteWebsite={onDeleteWebsite}
                     onWebsiteSelectedChange={setWebsiteSelected}
                     onRemoveDraft={row.removable ? () => removeDraftRow(website.id, row.key) : undefined}
-                    hidden={index > 0 && !rowsExpanded}
+                    hidden={
+                      !groupVisible ||
+                      (Boolean(filterKey) && !websiteMatches && Boolean(row.account) && !accountMatchesSafeFilter(row.account!, filterKey)) ||
+                      (index !== firstVisibleIndex && !rowsExpanded)
+                    }
                   />
                 ))
               })}
+              {filterKey && visibleWebsiteCount === 0 ? (
+                <tr>
+                  <td colSpan={5} className="vault-filter-empty">
+                    当前分类中没有匹配的网站或账号。密码和敏感字段不会参与筛选。
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
