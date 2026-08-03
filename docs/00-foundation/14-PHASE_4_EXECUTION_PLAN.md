@@ -75,13 +75,15 @@
 
 退出条件：本地与单次远程 CI 通过，候选证据写入发布清单；是否公开发布仍由项目所有者确认。
 
-本地候选证据（2026-08-02）：
+最终候选证据（2026-08-03）：
 
-- 前端 18/18、Rust/SQLCipher/DPAPI 32/32、npm audit、RustSec、架构、发布配置、敏感面和 Windows release 构建通过。
+- 前端 19/19、Rust/SQLCipher/DPAPI 32/32、npm audit、RustSec、架构、发布配置、敏感面和 Windows release 构建通过。
 - RustSec 扫描 529 个锁定依赖：0 个漏洞；17 个既有未维护/不健全传递依赖警告已记录。
-- 版本统一为 `0.3.0-beta.1`；NSIS 候选大小为 216,714,923 字节，SHA-256 为 `59772FD7885B2962B832131B340082DDDF6A5A5D4852692C8F6F471E8C29AC10`。
+- 版本统一为 `0.3.0-beta.1`；最终界面修正版提交为 `0848684fd3b65fac40016dc99729e7db1b4837e4`。
+- NSIS 候选大小为 216,718,121 字节，SHA-256 为 `CF5AEA5574CB87CDE6325D79B883E5A7D3E2BDDEA25A3F39B6D884B69E197710`。
 - 已运行的 `0.2.0-beta.1` 覆盖安装成功，安装窗口可见，旧进程关闭后新版本重新启动；DPAPI 密钥和 SQLCipher 数据库的大小、时间与哈希保持不变。
-- GitHub Actions CI `30753653836` 全部通过：Frontend quality gate、Rust/DPAPI/SQLCipher tests 和 RustSec audit 均为成功。
+- 仅使用虚构数据完成最终账号表格回归：名称、账号、密码输入框固定为相同尺寸，保存、打开网址、删除或取消使用紧凑图标按钮；1440 宽度无表格横向滚动，900×640 时溢出限制在表格内部。
+- GitHub Actions CI `30778809134` 全部通过：Frontend quality gate、Rust/DPAPI/SQLCipher tests 和 RustSec audit 均为成功。
 - 公开发布仍未批准；候选未正式代码签名，也没有独立安全评审。
 
 ## 开发顺序

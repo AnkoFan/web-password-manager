@@ -4,8 +4,8 @@
 
 ## 自动化
 
-- [x] GitHub 单次远程 CI `30753653836` 通过：Frontend quality gate、Rust/DPAPI/SQLCipher tests、RustSec audit 全部成功。
-- [x] 前端本地测试通过（8 个文件，18/18），生产构建通过。
+- [x] GitHub 最终候选 CI `30778809134` 通过：Frontend quality gate、Rust/DPAPI/SQLCipher tests、RustSec audit 全部成功。
+- [x] 前端本地测试通过（8 个文件，19/19），生产构建通过。
 - [x] Windows Rust/SQLCipher/DPAPI 本地测试通过（32/32）。
 - [x] RustSec 已审计 529 个锁定依赖：0 个漏洞、17 个已记录的未维护/不健全警告；npm audit 通过（0 个漏洞）。
 - [x] CSP、权限、架构、发布配置与生产包扫描在候选版本上通过。
@@ -16,6 +16,7 @@
 - [x] 首次启动和重启直接进入主界面，无锁定/解锁页面。
 - [x] 设置页明确说明 DPAPI 自动加密、无锁定功能及跨用户恢复限制。
 - [x] 仅用虚构数据完成新增、编辑、排序、筛选、密码生成、批量恢复和永久删除回归。
+- [x] 最终账号表格界面通过：名称、账号、密码输入框尺寸一致，保存、打开网址、删除或取消均为紧凑图标按钮；1440 与 900×640 布局符合预期。
 - [x] 回收站确认显示准确选择数量、子项范围、备份建议和非 SSD 安全擦除边界；取消后焦点返回触发按钮。
 - [x] 验证数据库文件头非明文 SQLite，密钥文件不包含数据库明文密钥。
 - [x] 创建、验证并恢复加密备份；损坏备份不替换当前文件。
@@ -27,7 +28,8 @@
 - [x] MIT License。
 - [x] 发布说明准确描述 DPAPI/SQLCipher 和无锁定限制。
 - [x] 前端、Rust、Cargo 锁文件和 Tauri 版本统一为 `0.3.0-beta.1`。
-- [x] NSIS 候选 `WebPasswordManager_0.3.0-beta.1_x64-setup.exe`（216,714,923 字节）SHA-256 已记录为 `59772FD7885B2962B832131B340082DDDF6A5A5D4852692C8F6F471E8C29AC10`。
+- [x] 最终界面修正版提交已记录为 `0848684fd3b65fac40016dc99729e7db1b4837e4`。
+- [x] NSIS 候选 `WebPasswordManager_0.3.0-beta.1_x64-setup.exe`（216,718,121 字节）SHA-256 已记录为 `CF5AEA5574CB87CDE6325D79B883E5A7D3E2BDDEA25A3F39B6D884B69E197710`。
 - [x] 发布说明明确披露当前安装包未正式代码签名。
 - [ ] 项目所有者批准公开发布（本次不自动公开）。
 
