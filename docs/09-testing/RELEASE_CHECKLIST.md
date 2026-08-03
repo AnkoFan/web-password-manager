@@ -1,10 +1,10 @@
 # 发布检查清单
 
-> 状态：`0.3.0-beta.1` 本地候选已冻结；等待单次远程 CI 记录
+> 状态：`0.3.0-beta.1` 内部候选已冻结；公开发布仍未批准
 
 ## 自动化
 
-- [ ] GitHub 单次远程 CI 通过并记录运行 ID。
+- [x] GitHub 单次远程 CI `30753653836` 通过：Frontend quality gate、Rust/DPAPI/SQLCipher tests、RustSec audit 全部成功。
 - [x] 前端本地测试通过（8 个文件，18/18），生产构建通过。
 - [x] Windows Rust/SQLCipher/DPAPI 本地测试通过（32/32）。
 - [x] RustSec 已审计 529 个锁定依赖：0 个漏洞、17 个已记录的未维护/不健全警告；npm audit 通过（0 个漏洞）。
