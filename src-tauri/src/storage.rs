@@ -324,8 +324,19 @@ fn sync_file(path: &Path, message: &'static str) -> Result<(), String> {
         .map_err(|_| message.to_string())
 }
 
-fn read_backup_manifest(directory: &Path) -> Result<BackupManifest, String> {
-    let path = directory.join(BACKUP_MANIFEST_FILE);
+fn parse_backup_id(backup_id: &str) -> Result<EntityId, String> {
+    EntityId::parse(backup_id).map_err(|_| "备份标识无效".to_string())
+}
+
+fn backup_directory(paths: &VaultPaths, backup_id: &EntityId) -> PathBuf {
+    backups_directory(paths).join(backup_id.as_uuid_string())
+}
+
+fn read_backup_manifest(
+    paths: &VaultPaths,
+    backup_id: &EntityId,
+) -> Result<BackupManifest, String> {
+    let path = backup_directory(paths, backup_id).join(BACKUP_MANIFEST_FILE);
     let metadata = fs::metadata(&path).map_err(|_| "备份清单不存在".to_string())?;
     if metadata.len() == 0 || metadata.len() > MAX_BACKUP_MANIFEST_BYTES {
         return Err("备份清单大小无效".into());
@@ -338,11 +349,6 @@ fn read_backup_manifest(directory: &Path) -> Result<BackupManifest, String> {
     }
     EntityId::parse(&manifest.id).map_err(|_| "备份标识无效".to_string())?;
     Ok(manifest)
-}
-
-fn backup_directory(paths: &VaultPaths, backup_id: &str) -> Result<PathBuf, String> {
-    let id = EntityId::parse(backup_id).map_err(|_| "备份标识无效".to_string())?;
-    Ok(backups_directory(paths).join(id.as_uuid_string()))
 }
 
 fn validate_file(path: &Path, expected_bytes: u64, expected_hash: &str) -> Result<(), String> {
@@ -363,9 +369,10 @@ fn validate_backup_files(
     paths: &VaultPaths,
     backup_id: &str,
 ) -> Result<(PathBuf, BackupManifest), String> {
-    let directory = backup_directory(paths, backup_id)?;
-    let manifest = read_backup_manifest(&directory)?;
-    if manifest.id != backup_id {
+    let backup_id = parse_backup_id(backup_id)?;
+    let directory = backup_directory(paths, &backup_id);
+    let manifest = read_backup_manifest(paths, &backup_id)?;
+    if manifest.id != backup_id.as_uuid_string() {
         return Err("备份标识不一致".into());
     }
     let database = directory.join(DATABASE_FILE);
@@ -395,8 +402,13 @@ pub(crate) fn list_backups(paths: &VaultPaths) -> Result<Vec<BackupInfo>, String
         {
             continue;
         }
-        let manifest = read_backup_manifest(&entry.path())?;
-        if entry.file_name().to_string_lossy() != manifest.id {
+        let file_name = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| "备份目录标识无效".to_string())?;
+        let backup_id = parse_backup_id(&file_name)?;
+        let manifest = read_backup_manifest(paths, &backup_id)?;
+        if file_name != manifest.id {
             return Err("备份目录标识不一致".into());
         }
         backups.push(BackupInfo::from(&manifest));
@@ -575,9 +587,8 @@ mod tests {
         let backup = create_backup(&paths, &connection).unwrap();
         verify_backup(&paths, &backup.id).unwrap();
 
-        let backup_database = backup_directory(&paths, &backup.id)
-            .unwrap()
-            .join(DATABASE_FILE);
+        let backup_id = parse_backup_id(&backup.id).unwrap();
+        let backup_database = backup_directory(&paths, &backup_id).join(DATABASE_FILE);
         fs::write(backup_database, b"TEST ONLY CORRUPTION").unwrap();
         assert!(verify_backup(&paths, &backup.id).is_err());
     }
@@ -607,5 +618,14 @@ mod tests {
             .query_row("SELECT display_name FROM vault_meta", [], |row| row.get(0))
             .unwrap();
         assert_eq!(display_name, "TEST-ONLY BACKUP");
+    }
+
+    #[test]
+    fn backup_identifiers_cannot_escape_the_backup_root() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = paths(&directory);
+
+        assert!(verify_backup(&paths, "../outside").is_err());
+        assert!(verify_backup(&paths, "00000000-0000-0000-0000-000000000000/../outside").is_err());
     }
 }
