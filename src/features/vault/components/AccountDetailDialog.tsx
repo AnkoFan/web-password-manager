@@ -25,7 +25,6 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
@@ -278,7 +277,7 @@ export function AccountDetailDialog({
 
   return (
     <Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
-      <DialogContent className="account-detail-dialog sm:max-w-3xl">
+      <DialogContent className="account-detail-dialog sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>账号详情</DialogTitle>
           <DialogDescription>
@@ -288,6 +287,8 @@ export function AccountDetailDialog({
         <form onSubmit={submit} className="account-detail-form">
           <div className="account-detail-scroll">
             <FieldGroup>
+              <section className="account-detail-section" aria-labelledby="account-basic-heading">
+                <h3 id="account-basic-heading">基础信息</h3>
               <Field data-invalid={!displayName.trim()}>
                 <FieldLabel htmlFor="account-detail-name">账号名称</FieldLabel>
                 <Input
@@ -351,8 +352,12 @@ export function AccountDetailDialog({
                   </div>
                 </Field>
               </div>
+              </section>
 
-              <Field>
+              <section className="account-detail-section" aria-labelledby="account-extra-heading">
+                <h3 id="account-extra-heading">补充信息</h3>
+                <div className="account-detail-grid account-extra-grid">
+                <Field>
                 <FieldLabel htmlFor="account-detail-email">主邮箱（可选）</FieldLabel>
                 <div className="account-detail-value-row">
                   <Input
@@ -384,9 +389,34 @@ export function AccountDetailDialog({
                 />
                 <FieldDescription>备注固定为非敏感多行字段，不进入搜索索引。</FieldDescription>
               </Field>
+                </div>
+              </section>
 
-              <FieldSeparator>自定义字段</FieldSeparator>
-
+              <section className="account-detail-section" aria-labelledby="account-custom-heading">
+              <div className="account-detail-section-heading">
+                <h3 id="account-custom-heading">自定义字段</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCustomFields((current) => [
+                      ...current,
+                      {
+                        key: newFieldKey(),
+                        systemRole: null,
+                        label: "",
+                        fieldType: "text",
+                        value: "",
+                        keepExistingValue: false,
+                        isSensitive: false,
+                      },
+                    ])
+                  }
+                >
+                  <Plus data-icon="inline-start" /> 添加自定义字段
+                </Button>
+              </div>
               <div className="account-custom-fields" aria-label="自定义字段列表">
                 {customFields.map((field, index) => {
                   const value = currentValue(field, revealed)
@@ -483,27 +513,8 @@ export function AccountDetailDialog({
                   )
                 })}
               </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setCustomFields((current) => [
-                    ...current,
-                    {
-                      key: newFieldKey(),
-                      systemRole: null,
-                      label: "",
-                      fieldType: "text",
-                      value: "",
-                      keepExistingValue: false,
-                      isSensitive: false,
-                    },
-                  ])
-                }
-              >
-                <Plus data-icon="inline-start" /> 添加自定义字段
-              </Button>
+              {customFields.length === 0 ? <p className="account-custom-empty">尚未添加自定义字段。</p> : null}
+              </section>
               <FieldError id="account-detail-error">{error}</FieldError>
             </FieldGroup>
           </div>

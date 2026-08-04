@@ -134,7 +134,6 @@ export function SettingsView() {
   return (
     <section className="settings-view" aria-label="本地设置与备份">
       <header>
-        <p>本地设置</p>
         <h1>设置</h1>
         <span>调整界面外观、窗口关闭行为和剪贴板清理，并管理仅保存在本机的自动加密数据库备份。</span>
       </header>

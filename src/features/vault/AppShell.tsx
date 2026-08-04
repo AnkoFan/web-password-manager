@@ -14,7 +14,8 @@ import { SearchResults } from "./components/SearchResults"
 import { SettingsView } from "./components/SettingsView"
 import { TopBar } from "./components/TopBar"
 import { TrashView } from "./components/TrashView"
-import { VaultTable, type VaultEntry } from "./components/VaultTable"
+import type { VaultEntry } from "./components/VaultTable"
+import { VaultWorkspace } from "./components/VaultWorkspace"
 import {
   VaultEditorDialog,
   type EditorState,
@@ -451,13 +452,23 @@ export function AppShell() {
         ) : view === "settings" ? (
           <SettingsView />
         ) : (
-          <VaultTable
+          <VaultWorkspace
             category={category}
             entries={entries}
             filterQuery={query}
+            selectedWebsiteId={selectedWebsiteId}
             selectedAccountId={selectedAccountId}
             selectedWebsiteIds={selectedWebsiteIds}
             revealed={revealed}
+            onSelectWebsite={(websiteId, accountId = null) => {
+              setSelectedWebsiteId(websiteId)
+              setSelectedAccountId(accountId)
+              setRevealed({})
+            }}
+            onSelectAccount={(accountId) => {
+              setSelectedAccountId(accountId)
+              setRevealed({})
+            }}
             onCreateWebsite={() =>
               selectedCategoryId
                 ? openEditor({
