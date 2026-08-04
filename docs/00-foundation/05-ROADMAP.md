@@ -1,6 +1,6 @@
 # 开发路线图
 
-> 状态：M3、M4、M5 已完成；`0.4.0-beta.2` 本地候选已冻结
+> 状态：M3、M4、M5、M6 已完成；`0.5.0-beta.1` 候选已冻结
 >
 > 全程仅使用虚构测试数据。
 
@@ -59,6 +59,8 @@
 5. [x] 完成 Windows 回归并冻结 `0.4.0-beta.1` 候选。
 6. [x] 完成首次关闭选择、托盘驻留、设置切换与 Windows 回归，冻结 `0.4.0-beta.2` 候选。
 
+M5 通过 PR [#5](https://github.com/AnkoFan/web-password-manager/pull/5) 合并到 `main`，合并提交为 `a6d3d6e`；主分支 CI [`30797200358`](https://github.com/AnkoFan/web-password-manager/actions/runs/30797200358) 全部通过，并发布 [`v0.4.0-beta.2`](https://github.com/AnkoFan/web-password-manager/releases/tag/v0.4.0-beta.2) 预发布版本。
+
 详细范围和门禁见 [M5 交接](15-PHASE_5_HANDOFF.md) 与 [M5 执行计划](16-PHASE_5_EXECUTION_PLAN.md)。
 
 ## 不进入当前 M5
@@ -66,3 +68,18 @@
 - 标签、收藏、组合筛选、导入导出、多保险库、附件和主题。
 - 主密码、锁定、解锁、自动锁定、生物识别或 Windows 生命周期锁定。
 - 云同步、浏览器扩展、移动端、团队共享和后台联网。
+
+## M6 纯界面重构
+
+> 状态：M6.0–M6.5 已完成
+
+1. [x] 冻结 M5 发布基线和 UI-only 边界。
+2. [x] 审计主工作区、账号详情、设置页和响应式布局。
+3. [x] 确认桌面主工作区与关键状态视觉概念。
+4. [x] 建立统一设计令牌、应用外壳和组件层级。
+5. [x] 重构保险库、详情、搜索、回收站和设置界面。
+6. [x] 完成桌面、窄屏、键盘、缩放和高对比度回退回归。
+
+M6 将横向账号表重构为分类、网站、账号详情三层工作区，加入六种固定强调色及向后兼容设置持久化，并冻结 `0.5.0-beta.1` 候选。业务领域、数据库 schema、DPAPI/SQLCipher、备份与搜索安全语义均保持不变。
+
+M6 只允许调整 React 界面结构、样式、可访问性和现有交互呈现；不新增业务功能，不修改 Rust 命令、数据库 schema、DPAPI/SQLCipher 文件对、备份格式、搜索语义或窗口关闭语义。详细范围见 [M6 UI 交接](17-PHASE_6_UI_HANDOFF.md) 与 [M6 UI 执行计划](18-PHASE_6_UI_EXECUTION_PLAN.md)。

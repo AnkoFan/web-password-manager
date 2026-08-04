@@ -2,13 +2,15 @@
 
 > 最后更新日期：2026-08-03
 >
-> 状态：M5.0–M5.5 已完成；`0.4.0-beta.2` 本地候选已冻结
+> 状态：M5.0–M5.5 已完成；`v0.4.0-beta.2` 已发布并合并到 `main`
 
 ## 1. 基线
 
 - GitHub `main` 的 M4 合并基线：`4899846`。
 - M4 最终界面修正版：`0848684fd3b65fac40016dc99729e7db1b4837e4`。
 - M4 内部候选：`0.3.0-beta.1`。
+- M5 合并提交：`a6d3d6e`；PR [#5](https://github.com/AnkoFan/web-password-manager/pull/5)。
+- M5 预发布版本：[`v0.4.0-beta.2`](https://github.com/AnkoFan/web-password-manager/releases/tag/v0.4.0-beta.2)；主分支 CI [`30797200358`](https://github.com/AnkoFan/web-password-manager/actions/runs/30797200358) 全部通过。
 - M5 继续只使用明确标记的虚构测试数据。
 
 ## 2. 不可改变的产品边界

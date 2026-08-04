@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   getAppSettings: vi.fn().mockResolvedValue({
     clipboardClearSeconds: 30,
     closeBehavior: "ask",
+    accentColor: "oceanBlue",
   }),
   updateAppSettings: vi.fn(async (settings) => settings),
   applyCloseAction: vi.fn().mockResolvedValue(undefined),
@@ -37,6 +38,7 @@ describe("App close behavior", () => {
   it("persists the first tray choice before applying it", async () => {
     render(<App />)
     await screen.findByText("TEST ONLY vault ready")
+    expect(document.documentElement).toHaveAttribute("data-accent", "oceanBlue")
     await waitFor(() => expect(mocks.closeHandler).not.toBeNull())
 
     act(() => mocks.closeHandler?.())
@@ -46,6 +48,7 @@ describe("App close behavior", () => {
       expect(mocks.updateAppSettings).toHaveBeenCalledWith({
         clipboardClearSeconds: 30,
         closeBehavior: "minimizeToTray",
+        accentColor: "oceanBlue",
       }),
     )
     expect(mocks.applyCloseAction).toHaveBeenCalledWith("minimizeToTray")

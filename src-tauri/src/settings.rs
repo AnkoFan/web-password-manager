@@ -12,6 +12,8 @@ pub(crate) struct AppSettings {
     pub(crate) clipboard_clear_seconds: u64,
     #[serde(default)]
     pub(crate) close_behavior: CloseBehavior,
+    #[serde(default)]
+    pub(crate) accent_color: AccentColor,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
@@ -23,11 +25,24 @@ pub(crate) enum CloseBehavior {
     MinimizeToTray,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum AccentColor {
+    #[default]
+    OceanBlue,
+    Indigo,
+    Violet,
+    Rose,
+    Amber,
+    Teal,
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             clipboard_clear_seconds: 30,
             close_behavior: CloseBehavior::Ask,
+            accent_color: AccentColor::OceanBlue,
         }
     }
 }
@@ -95,6 +110,7 @@ mod tests {
             serde_json::from_str(r#"{"clipboardClearSeconds":30}"#).expect("legacy settings");
 
         assert_eq!(settings.close_behavior, CloseBehavior::Ask);
+        assert_eq!(settings.accent_color, AccentColor::OceanBlue);
     }
 
     #[test]
@@ -108,5 +124,18 @@ mod tests {
         assert!(serde_json::to_string(&settings)
             .expect("serialize settings")
             .contains(r#""closeBehavior":"minimizeToTray""#));
+    }
+
+    #[test]
+    fn accent_color_uses_stable_camel_case_values() {
+        let settings: AppSettings = serde_json::from_str(
+            r#"{"clipboardClearSeconds":30,"closeBehavior":"ask","accentColor":"violet"}"#,
+        )
+        .expect("settings with accent color");
+
+        assert_eq!(settings.accent_color, AccentColor::Violet);
+        assert!(serde_json::to_string(&settings)
+            .expect("serialize settings")
+            .contains(r#""accentColor":"violet""#));
     }
 }

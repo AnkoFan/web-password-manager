@@ -14,7 +14,6 @@ export function SearchResults({ query, results, onSelect }: SearchResultsProps) 
     <section className="search-results" aria-label="搜索结果">
       <header>
         <div>
-          <p>全局搜索</p>
           <h2>“{query}”的结果</h2>
         </div>
         <Badge variant="secondary">{results.length}</Badge>

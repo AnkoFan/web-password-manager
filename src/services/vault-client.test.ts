@@ -81,15 +81,21 @@ describe("browser prototype local database", () => {
 
   it("keeps local settings and restores an in-memory prototype backup", async () => {
     await expect(
-      vaultClient.updateAppSettings({ clipboardClearSeconds: 0, closeBehavior: "ask" }),
+      vaultClient.updateAppSettings({
+        clipboardClearSeconds: 0,
+        closeBehavior: "ask",
+        accentColor: "oceanBlue",
+      }),
     ).rejects.toThrow("应用设置超出允许范围")
     await vaultClient.updateAppSettings({
       clipboardClearSeconds: 5,
       closeBehavior: "minimizeToTray",
+      accentColor: "violet",
     })
     await expect(vaultClient.getAppSettings()).resolves.toEqual({
       clipboardClearSeconds: 5,
       closeBehavior: "minimizeToTray",
+      accentColor: "violet",
     })
 
     const before = await vaultClient.createCategory("虚构备份前分类")

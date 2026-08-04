@@ -88,7 +88,6 @@ export function TrashView({
     <section className="trash-view" aria-label="回收站">
       <header>
         <div>
-          <p>数据生命周期</p>
           <h1>回收站</h1>
           <span>按删除批次恢复；批量操作只作用于明确勾选的项目。</span>
         </div>
