@@ -21,5 +21,6 @@ backups/
 *.pfx
 .DS_Store
 .idea/
+.obsidian/
 .vscode/*
 !.vscode/extensions.json
