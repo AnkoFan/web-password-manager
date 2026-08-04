@@ -518,6 +518,5 @@ MVP 至少完成以下端到端场景：
 - [功能清单](FEATURE_LIST.md)
 - [MVP 范围](MVP_SCOPE.md)
 - [验收标准](ACCEPTANCE_CRITERIA.md)
-- [非功能需求](NON_FUNCTIONAL_REQUIREMENTS.md)
 - [数据模型](../02-domain-and-data/DATA_MODEL.md)
 - [安全模型](../04-security/SECURITY_MODEL.md)

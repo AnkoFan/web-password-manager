@@ -159,6 +159,5 @@
 
 - [项目愿景](00-PROJECT_VISION.md)
 - [设计原则](01-DESIGN_PRINCIPLES.md)
-- [命名规范](03-NAMING_CONVENTIONS.md)
 - [数据模型](../02-domain-and-data/DATA_MODEL.md)
 - [实体定义](../02-domain-and-data/ENTITY_DEFINITIONS.md)

@@ -98,7 +98,6 @@
 ## 9. 相关文档
 
 - [数据库设计](DATABASE_DESIGN.md)
-- [迁移策略](MIGRATION_STRATEGY.md)
 - [数据模型](../02-domain-and-data/DATA_MODEL.md)
 - [数据生命周期](../02-domain-and-data/DATA_LIFECYCLE.md)
 - [第二阶段执行计划](../00-foundation/07-PHASE_2_EXECUTION_PLAN.md)

@@ -259,5 +259,3 @@ stateDiagram-v2
 - [数据验证](DATA_VALIDATION.md)
 - [元数据](METADATA.md)
 - [备份与恢复](../03-storage/BACKUP_AND_RESTORE.md)
-- [迁移策略](../03-storage/MIGRATION_STRATEGY.md)
-- [安全删除](../04-security/SECURE_DELETION.md)

@@ -379,5 +379,3 @@
 - [数据生命周期](../02-domain-and-data/DATA_LIFECYCLE.md)
 - [安全模型](../04-security/SECURITY_MODEL.md)
 - [剪贴板安全](../04-security/CLIPBOARD_SECURITY.md)
-- [测试策略](../09-testing/TEST_STRATEGY.md)
-- [端到端测试计划](../09-testing/END_TO_END_TEST_PLAN.md)

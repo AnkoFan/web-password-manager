@@ -285,7 +285,3 @@
 
 - [界面架构](UI_ARCHITECTURE.md)
 - [信息架构](INFORMATION_ARCHITECTURE.md)
-- [导航设计](NAVIGATION_DESIGN.md)
-- [交互设计](INTERACTION_DESIGN.md)
-- [设计系统](DESIGN_SYSTEM.md)
-- [无障碍设计](ACCESSIBILITY.md)

@@ -360,5 +360,3 @@ MVP 中不可关闭：
 - [模块生命周期](MODULE_LIFECYCLE.md)
 - [模块接口](MODULE_INTERFACE.md)
 - [事件系统](EVENT_SYSTEM.md)
-- [模块开发指南](../08-development/MODULE_DEVELOPMENT_GUIDE.md)
-- [各模块设计](../06-modules/CATEGORY_MODULE.md)
