@@ -34,7 +34,7 @@
 - CurrentUser 与 LocalMachine 证书存储中未找到可用于正式代码签名的证书。
 - 隔离安装测试产物均为未签名；记录 SHA-256 只用于完整性证据，不等价于发布者身份验证。
 - `gh` CLI 已以 `AnkoFan` 身份验证；2026-08-01 读取确认仓库为私有、默认分支为 `main`。GitHub API 返回当前私有仓库套餐不支持分支保护（HTTP 403）；仓库公开前不更改可见性，公开后再启用必需 CI 与 `main` 分支保护。
-- 项目所有者于 2026-08-01 选择 MIT License；根目录包含正式 `LICENSE` 正文，Rust 包元数据使用 SPDX `MIT`，选择理由记录于 [许可证选择记录](../../LICENSE_SELECTION.md)。
+- 项目所有者于 2026-08-01 选择 MIT License；根目录包含正式 `LICENSE` 正文，Rust 包元数据使用 SPDX `MIT`。
 
 ## 3. 尚未完成的人工验收
 

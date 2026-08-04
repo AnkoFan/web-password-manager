@@ -251,4 +251,3 @@
 - [路线图](../00-foundation/05-ROADMAP.md)
 - [项目范围](../00-foundation/04-PROJECT_SCOPE.md)
 - [模块架构](../05-architecture/MODULE_ARCHITECTURE.md)
-- [测试策略](../09-testing/TEST_STRATEGY.md)

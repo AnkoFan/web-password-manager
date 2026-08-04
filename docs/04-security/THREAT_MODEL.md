@@ -292,4 +292,3 @@ flowchart TD
 - [剪贴板安全](CLIPBOARD_SECURITY.md)
 - [敏感数据处理](SENSITIVE_DATA_HANDLING.md)
 - [安全测试计划](SECURITY_TEST_PLAN.md)
-- [依赖策略](../08-development/DEPENDENCY_POLICY.md)

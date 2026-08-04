@@ -315,4 +315,3 @@ MVP 完成时必须同时具备：
 - [路线图](../00-foundation/05-ROADMAP.md)
 - [数据模型](../02-domain-and-data/DATA_MODEL.md)
 - [安全模型](../04-security/SECURITY_MODEL.md)
-- [测试策略](../09-testing/TEST_STRATEGY.md)

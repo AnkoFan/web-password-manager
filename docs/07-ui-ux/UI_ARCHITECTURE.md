@@ -268,8 +268,5 @@ App
 
 - [信息架构](INFORMATION_ARCHITECTURE.md)
 - [界面线框图](WIREFRAMES.md)
-- [导航设计](NAVIGATION_DESIGN.md)
-- [交互设计](INTERACTION_DESIGN.md)
-- [组件库](COMPONENT_LIBRARY.md)
 - [技术栈](../05-architecture/TECH_STACK.md)
 - [系统架构](../05-architecture/SYSTEM_ARCHITECTURE.md)

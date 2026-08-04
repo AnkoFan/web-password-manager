@@ -293,7 +293,5 @@
 
 - [界面架构](UI_ARCHITECTURE.md)
 - [界面线框图](WIREFRAMES.md)
-- [导航设计](NAVIGATION_DESIGN.md)
-- [页面清单](SCREEN_LIST.md)
 - [术语表](../00-foundation/02-GLOSSARY.md)
 - [数据模型](../02-domain-and-data/DATA_MODEL.md)
