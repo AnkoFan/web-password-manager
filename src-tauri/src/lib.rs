@@ -15,6 +15,7 @@ mod password_generator;
 mod repositories;
 mod settings;
 mod storage;
+mod website_metadata;
 
 struct VaultSession {
     connection: Option<Connection>,
@@ -125,6 +126,7 @@ pub fn run() {
             commands::delete_category,
             commands::list_websites,
             commands::save_website,
+            commands::resolve_website_name,
             commands::delete_website,
             commands::list_accounts,
             commands::get_account,
