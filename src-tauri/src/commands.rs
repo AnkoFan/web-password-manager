@@ -20,6 +20,7 @@ use crate::{
         open_or_create_database, restore_backup as restore_backup_files, vault_paths,
         verify_backup as verify_backup_files, BackupInfo,
     },
+    website_metadata::fetch_website_name,
 };
 
 #[derive(Serialize)]
@@ -229,6 +230,13 @@ pub(crate) fn save_website(
         )
         .map(WebsiteView::from)
         .map_err(repository_error)
+}
+
+#[tauri::command]
+pub(crate) async fn resolve_website_name(url: String) -> Result<String, CommandError> {
+    fetch_website_name(&url)
+        .await
+        .map_err(|error| CommandError::new("website_name_unavailable", error))
 }
 
 #[tauri::command]

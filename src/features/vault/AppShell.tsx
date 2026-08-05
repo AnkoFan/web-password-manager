@@ -544,6 +544,7 @@ export function AppShell() {
           onClose={closeEditor}
           onSaveCategory={saveCategory}
           onSaveWebsite={saveWebsite}
+          onResolveWebsiteName={vaultClient.resolveWebsiteName}
         />
       ) : null}
       {accountEditor ? (

@@ -1,0 +1,64 @@
+name: Publish GitHub Package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v0.6.0-bate"
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_VERSION: 0.6.0-bate
+
+jobs:
+  build-installer:
+    name: Build Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup default stable
+      - run: npm run tauri -- build --bundles nsis
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: WebPasswordManager-${{ env.PACKAGE_VERSION }}-windows-x64
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-package:
+    name: Publish installer to GHCR
+    needs: build-installer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: WebPasswordManager-${{ env.PACKAGE_VERSION }}-windows-x64
+          path: package
+      - name: Build and push GitHub Package
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          image="ghcr.io/${owner}/web-password-manager"
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build \
+            --file packaging/github-packages.Dockerfile \
+            --build-arg VERSION="$PACKAGE_VERSION" \
+            --tag "$image:$PACKAGE_VERSION" \
+            --tag "$image:latest-bate" \
+            .
+          docker push "$image:$PACKAGE_VERSION"
+          docker push "$image:latest-bate"

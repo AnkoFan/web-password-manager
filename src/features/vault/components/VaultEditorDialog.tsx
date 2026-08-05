@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -35,6 +35,7 @@ type VaultEditorDialogProps = {
   onClose: () => void
   onSaveCategory: (id: string | undefined, name: string) => Promise<void>
   onSaveWebsite: (draft: WebsiteDraft) => Promise<void>
+  onResolveWebsiteName: (url: string) => Promise<string>
 }
 
 export function VaultEditorDialog({
@@ -43,6 +44,7 @@ export function VaultEditorDialog({
   onClose,
   onSaveCategory,
   onSaveWebsite,
+  onResolveWebsiteName,
 }: VaultEditorDialogProps) {
   const [name, setName] = useState(
     editor.kind === "category"
@@ -57,6 +59,30 @@ export function VaultEditorDialog({
   )
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
+  const [resolvingName, setResolvingName] = useState(false)
+  const [nameLookupMessage, setNameLookupMessage] = useState("")
+  const nameWasEdited = useRef(Boolean(name.trim()))
+  const lookupSequence = useRef(0)
+
+  async function resolveName() {
+    if (editor.kind !== "website" || !primaryUrl.trim() || nameWasEdited.current) return
+    const sequence = ++lookupSequence.current
+    setResolvingName(true)
+    setNameLookupMessage("")
+    try {
+      const resolvedName = await onResolveWebsiteName(primaryUrl)
+      if (sequence === lookupSequence.current && !nameWasEdited.current) {
+        setName(resolvedName)
+        setNameLookupMessage("已根据网址填写网站名称")
+      }
+    } catch {
+      if (sequence === lookupSequence.current) {
+        setNameLookupMessage("未能读取网站名称，仍可手动填写")
+      }
+    } finally {
+      if (sequence === lookupSequence.current) setResolvingName(false)
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -107,7 +133,10 @@ export function VaultEditorDialog({
                 aria-describedby={error ? "editor-error" : undefined}
                 aria-invalid={Boolean(error)}
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  nameWasEdited.current = Boolean(event.target.value.trim())
+                  setName(event.target.value)
+                }}
               />
             </Field>
 
@@ -137,8 +166,19 @@ export function VaultEditorDialog({
                     type="url"
                     placeholder="https://example.com/login"
                     value={primaryUrl}
-                    onChange={(event) => setPrimaryUrl(event.target.value)}
+                    onChange={(event) => {
+                      lookupSequence.current += 1
+                      setNameLookupMessage("")
+                      setPrimaryUrl(event.target.value)
+                    }}
+                    onBlur={() => void resolveName()}
+                    aria-describedby={nameLookupMessage ? "website-name-status" : undefined}
                   />
+                  {resolvingName || nameLookupMessage ? (
+                    <small id="website-name-status" aria-live="polite">
+                      {resolvingName ? "正在读取网站名称…" : nameLookupMessage}
+                    </small>
+                  ) : null}
                 </Field>
               </>
             ) : null}

@@ -148,6 +148,12 @@ export const vaultClient = {
     )
   },
 
+  resolveWebsiteName(url: string) {
+    return desktopOrPrototype<string>("resolve_website_name", { url }, async () =>
+      (await browserPrototype()).resolveWebsiteName(url),
+    )
+  },
+
   async deleteWebsite(websiteId: string) {
     await desktopOrPrototype("delete_website", { websiteId }, async () =>
       (await browserPrototype()).deleteWebsite(websiteId),

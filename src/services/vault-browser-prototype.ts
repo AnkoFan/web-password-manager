@@ -247,6 +247,41 @@ export function saveWebsite(draft: WebsiteDraft): Website {
   return website
 }
 
+export async function resolveWebsiteName(value: string) {
+  let url: URL
+  try {
+    url = new URL(value.trim())
+  } catch {
+    throw new VaultClientError(
+      "website_name_unavailable",
+      "请输入完整的 HTTP 或 HTTPS 网址",
+    )
+  }
+  if (!(["http:", "https:"] as string[]).includes(url.protocol)) {
+    throw new VaultClientError(
+      "website_name_unavailable",
+      "只支持 HTTP 或 HTTPS 网址",
+    )
+  }
+
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    if (!response.ok) throw new Error("request failed")
+    const html = await response.text()
+    const document = new DOMParser().parseFromString(html, "text/html")
+    const name =
+      document.querySelector<HTMLMetaElement>('meta[property="og:site_name"]')?.content ||
+      document.querySelector<HTMLMetaElement>('meta[name="application-name"]')?.content ||
+      document.title
+    const normalized = name.trim().replace(/\s+/g, " ")
+    if (normalized) return Array.from(normalized).slice(0, 200).join("")
+  } catch {
+    // Browser development mode can be blocked by the target site's CORS policy.
+  }
+
+  return url.hostname.replace(/^www\./, "").split(".")[0]
+}
+
 export function deleteWebsite(websiteId: string) {
   const website = activeWebsite(websiteId)
   if (!website) throw new VaultClientError("website_not_found", "网站不存在")
